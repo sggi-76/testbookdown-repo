@@ -1,0 +1,286 @@
+# Lecture 6: Transformations
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li> Understand what transformations do and when they are appropriate (for outcomes and/or predictors)</li>
+  <li> Understand how to interpret the regression coefficients for the transformed models</li>
+</ul>
+::::
+
+
+## Why transformations?
+
+Often the data in their raw form cannot appropriately be modelled using a linear regression: Some examples are when:
+
+* It is harder to interpret the output with the data in their raw form (e.g. the intercept)
+* The relationship between one or more of the predictors and the outcome is non-linear.
+* The residual assumptions are violated (in particular there is a funnel shape in the residual vs fitted plot)
+* There are clustered outliers (sometimes a transform can help)
+* There is a theoretical reason why a transformed version of the outcome should be analysed.
+
+Both outcome and predictors can be transformed.
+
+## Centering the predictors
+
+We saw in the data on Study habits that when we include Study Skills as a predictor the intercept refers to a situation where the Study Skills are 0 which is something that does not occur in the data (and is unlikely to ever be the case, a student who has made it into university must have some study skills). Similarly when we look at the pay data it is meaningless to consider the hourly pay of a person who is aged 0 years (or even up to 16 years of age).
+
+```{r echo=FALSE}
+Hourly_Pay<-read.csv("../Data/age_hourpay.csv",header = TRUE)
+#create a new variable called genderCat where gender is M,F
+Hourly_Pay$genderCat<-ifelse(Hourly_Pay$gender==0,"M","F")
+```
+
+We look at data from the British Panel Household survey from the early 90s. Note that in these data there were no options for gender other than male and female. Nowadays the Understanding Society survey accommodates other expressions of sexual identity. In these data females are ``gender``=1 but we create a new predictor called ``genderCat`` where females and males are represented by ``F`` and males by ``M`` respectively.
+
+Q: What do you expect the relationship between age and pay to be? Why?
+
+We now run the following regression:
+
+```{r}
+pay.lm<-lm(hourpay~age*genderCat,data=Hourly_Pay)
+display(pay.lm)
+
+```
+
+There are a number of problems with the interpretation of the intercept and indeed the coefficients of the predictors:
+
+* The intercept says that a male of age 0 earns `r round(coef(pay.lm)[1],2)` an hour
+* The coefficient of genderCatM (i.e. men vs women) is `r round(coef(pay.lm)[3],2)` . Because of the interaction interpretation of this coefficient is problematic. We might be tempted to interpret it as meaning that the pay of men is on average £`r round(coef(pay.lm)[3],2)` pounds lower an hour than that of women. This is incorrect though because of the interaction.
+* It actually means that _amongst those of age 0_ the pay of men is £`r round(coef(pay.lm)[3],2)` pounds an hour lower than that of women. That is even more meaningless.
+
+We can make the output more interpretable by first of all _centering_ some of the predictors (typically the continuous ones) around their means.
+
+```{r fig.width=7}
+cent.age<-with(Hourly_Pay,age-mean(age))
+#cent.gender<-with(Hourly_Pay,gender-mean(gender))
+pay.lm.cent<-lm(hourpay~cent.age*genderCat,data=Hourly_Pay)
+display(pay.lm.cent)
+```
+
+Note that the residual sd and the R-squared stay the same. That is because centering is a _linear_ transformation. The coefficient associated with age does not change, however we can now see that for a person who is 41.7 years old (mean of age) men earn on average `r round(coef(pay.lm.cent)[3],2)`  pounds more than women. This is much more meaningful. 
+
+
+:::: {.whitebox data-latex=""}
+Q: How would you interpret the intercept?
+::::
+
+We could also subtract the mean from a binary variable as this would reflect the proportion of e.g. men vs women in the population but in this case we prefer to highlight the difference. We can also on occasion centre the outcome but this is not very common and there needs to be good reason.
+
+## Standardising the predictors
+
+If we look at the coefficients, we may be inclined to think that age is a less important predictor than gender because it is smaller in terms of absolute value. It is hard to say for sure though because the _scale_ (range) of age is from 16-65 while that of gender is 0-1. A way of making the coefficients more comparable is by _standardising_ the predictors i.e. subtracting the mean and dividing by the standard deviation. We'll consider the regression without an interaction for simplicity.
+
+```{r}
+#we use gender here as it is 0,1 and can be manipulated as a number
+std.age<-with(Hourly_Pay, (age-mean(age))/sd(age))
+std.gender<-with(Hourly_Pay,(gender-mean(gender)/sd(gender)))
+
+pay.lm.std<-lm(hourpay~std.age+std.gender,data=Hourly_Pay)
+display(pay.lm.std)
+```
+ 
+Once standardised we see that the impact of gender on hourly pay is larger than that of age. A change in 2 years of (2 $\times$ 1.73=3.46) has approximately the same effect on hourly pay as being a man vs being a woman.
+
+## Logarithmic transforms
+
+Logarithmic or log transforms are amongsththe most commonly used transforms. They are called upon when linearity, additivity or constant variance cannot be assumed to hold. They have a useful property which is that they preserve the order of the transformed data and "even" out the data, so that large differences e.g between large and small values in the data become smaller. Common cases where a logarithmic transform should be considered are:
+
+* When the outcome cannot be negative
+* When there is a theoretical reason (e.g. economic/scientific theory)
+* When the residual plots exhibit a funnel shape
+
+We'll ignore the interaction for now and return to it in the workshop. We now fit the following regression:
+
+$E$(``hourpay``) = $\beta_0$ + $\beta_1$``age`` + $\beta_2$``genderCat`` 
+
+```{r }
+pay.lm.0<-lm(hourpay~age+genderCat,data=Hourly_Pay)
+display(pay.lm.0)
+```
+
+Let's look at the scatter and residual plots:
+
+```{r echo=FALSE, fig.asp=0.7,fig.width=10,fig.align="center", tidy=TRUE, warning=FALSE}
+#for geom_line to avoid having to use the interaction model for now
+pred.for.plot<-fitted(pay.lm.0)
+#plot of raw data
+p1<-ggplot(data=Hourly_Pay, aes(x=age, y=hourpay, colour=genderCat, shape=genderCat))+ geom_point()
+#using geom_line to fit a line through the fitted points (i.e. the expected line)
+p1<-p1+geom_line(aes(y =pred.for.plot), size = 1)
+#not essential, for the book
+p1<-p1+theme_bw()+ scale_colour_grey()+theme(legend.position = "top")+ labs(tag = "A") 
+
+#residual vs fitted plot
+p2<-ggplot(data=Hourly_Pay,aes(x=pred.for.plot,y=rstandard(pay.lm.0), colour=genderCat, shape=genderCat))+geom_point()+geom_abline(slope=0,intercept=0)
+#not essential, for the book
+p2<-p2+ labs(tag = "B")+theme_bw()+ scale_colour_grey()+theme(legend.position="none")+ xlab("fitted")+ylab("standardised residuals")
+
+#plot of raw data but limiting it to 150 max in hourpay
+p3<-ggplot(data=Hourly_Pay, aes(x=age, y=hourpay, colour=genderCat, shape=genderCat))+ geom_point()+geom_line(aes(y =pred.for.plot), size = 1)
+#only points between -1 and 150 in hourpay should be displayed
+p3<-p3 + ylim(-1,150)
+#not essential, for the book
+p3<-p3+theme_bw()+ scale_colour_grey()+theme(legend.position = "none")+ labs(tag = "C")
+
+#residual vs fitted plot with limits
+p4<-ggplot(data=Hourly_Pay,aes(x=pred.for.plot,y=rstandard(pay.lm.0), colour=genderCat, shape=genderCat))+geom_point()+geom_abline(slope=0,intercept=0)
+p4<-p4+ylim(-5,10)
+#not essential, for book
+p4<-p4+ labs(tag = "D")+theme_bw()+ scale_colour_grey()+theme(legend.position="none")+ xlab("fitted")+ylab("standardised residuals")
+
+#to arrange the 4 plots in a 2x2 grid
+grid.arrange(p1,p2,p3,p4,nrow=2)
+```
+There are quite a few problems highlighted by these plots. First of all in plot A nothing can really be seen, this is also true for the corresponding fitted vs residual plot B. If we remove the most extreme 5 values and re-run the plots we can see that the relationship between ``age`` and ``hourpay`` does not look linear in plot C. Furthermore, there is a clear funnel shape in the fitted vs residual plot in D. Note also that the fitted vs residual shows a clear distinction in the predictions between men (in grey) and women (in black).
+
+
+:::: {.whitebox data-latex=""}
+Q: What do the funnel shape of the residual vs fitted plot means in this data set. Why is it a potential problem?
+::::
+
+Given that we have a _funnel shaped plot_ in the residual vs fitted plot and the value of hourly pay _can only be positive_, let's try a logarithmic transform on the outcome hourly pay. That means we fit the following regression:
+
+$E($log(``hourpay``)) = $\gamma_0$ + $\gamma_1$``age`` + $\beta_2$``genderCat`` 
+
+The plots look like this:
+
+```{r echo=FALSE,fig.asp=0.5,fig.width=7,fig.align="center", tidy=TRUE}
+pay.lm.1<-lm(log(hourpay)~age+genderCat,data=Hourly_Pay)
+#the fitted points for the log(hourpay) model
+pred.for.plot.log<-fitted(pay.lm.1)
+#plot of logged data
+p1<-ggplot(data=Hourly_Pay, aes(x=age, y=log(hourpay), colour=genderCat, shape=genderCat))+ geom_point()+geom_line(aes(y =pred.for.plot.log), size = 1)
+#not essential for book
+p1<-p1+ theme_bw()+scale_colour_grey()+theme(legend.position = "top")+ labs(tag = "A")
+
+#residual vs fitted plot
+p2<-ggplot(data=Hourly_Pay,aes(x=pred.for.plot,y=rstandard(pay.lm.1), colour=genderCat, shape=genderCat))+geom_point()+geom_abline(slope=0,intercept=0)+ xlab("fitted")+ylab("standardised residuals")
+#not essential, for the book
+p2<-p2+ labs(tag = "B")+theme_bw()+ scale_colour_grey()+theme(legend.position="none")
+
+#side by side plots
+grid.arrange(p1,p2,nrow=1)
+```
+Not all the problems have gone away. There is still non-linearity, however this is true only for ages below about 30. It is approximately linear for ages over 30 (why could this be?). The fitted versus residual plot has also improved although it is still exhibiting some non-linearity and funnelling.
+
+:::: {.whitebox data-latex=""}
+Q: Why do you think there is a curve shape to the scatterplot? What functional form could be used to address the lack of linearity?
+
+::::
+
+## Interpreting the output when using a log transform on the outcome
+
+Applying a log transform on the outcome _changes_ the underlying regression assumptions. Without the transform we are saying that there is an _additive_ relationship between the outcome and the predictors:
+
+$$ y_i = \beta_0+ \beta_1 x_{i1} + \beta_2 x_{i2} + \ldots +\beta_p x_{ip} + \epsilon_i$$
+
+With a log transform we say it is _additive on the log scale_:
+
+$$ log(y_i) = \beta_0+ \beta_1 x_{i1} + \beta_2 x_{i2} + \ldots +\beta_p x_{ip} + \epsilon_i$$
+
+Which means _multiplicative_ on the original scale:
+
+$$ 
+\begin{aligned}
+y_i &= e^{\beta_0+ \beta_1 x_{i1} + \beta_2 x_{i2} + \ldots +\beta_p x_{ip} + \epsilon_i} \\
+     & = B_0 \cdot B_1^{x_i1} \cdot B_2^{x_i2} \cdot \ldots \cdot B_p^{x_ip} \cdot E
+\end{aligned}
+$$
+
+In our case we have
+
+```{r }
+pay.lm.1<-lm(log(hourpay)~age+genderCat,data=Hourly_Pay)
+display(pay.lm.1)
+```
+
+
+:::: {.whitebox data-latex=""}
+Q: What is the regression associated with the output above?
+::::
+
+This means that an increase in 1 year of age results in an average increase in 0.01 in _log_ hourly pay. This results in an increase by _a factor of_ exp(0.01)=1.01 in hourly pay. This is more easily understood as an increase in 1\% in hourly play because _multiplying_ by 1.01 is equivalent to increasing by 1\%.
+
+:::: {.whitebox data-latex=""}
+Q: How do you interpret the coefficient of gender?
+
+On the log scale: A decrease in expected 0.20 in log hourly pay if you are a woman compared to a man
+
+Note that exp(-0.20)=0.82
+::::
+
+
+The residual sd and the R-squared haven't improved very much but that is to be expected as the plots indicate that the fit still isn't very good. We really need to include more predictors and use more complex models to fully analyse these data.
+
+*Aside*
+
+One way to tackle the non-linearity might be to conduct separate subset analyses, one for people aged below 30 and another for people aged above 30. This could be coded in the regression. 
+
+```{r echo=FALSE,fig.asp=0.5,fig.width=7,fig.align="center", tidy=TRUE}
+pay.age.lm<-lm(log(hourpay)~genderCat+age*(age>30),data=Hourly_Pay)
+ggplot(Hourly_Pay, aes(x=age,y=log(hourpay),color=(age>30)))+geom_point()+geom_smooth(method="lm", se=FALSE)+theme_bw()
+```
+
+### Adding an interaction
+
+What happens when we add the interaction back in?
+
+```{r}
+pay.lm.log<-lm(log(hourpay)~age*genderCat,data=Hourly_Pay)
+display(pay.lm.log)
+```
+
+```{r echo=FALSE,fig.asp=0.5,fig.width=10,fig.align="center", tidy=TRUE}
+p1<-ggplot(data=Hourly_Pay, aes(x=age, y=log(hourpay), colour=genderCat, shape=genderCat))+ geom_point() +geom_smooth(method="lm",se=FALSE)+labs(tag = "A")+theme_bw()+ scale_colour_grey()+ theme(legend.position = c(0.2,0.8))
+
+p2<-ggplot(data=Hourly_Pay,aes(x=pred.for.plot,y=rstandard(pay.lm.1), colour=genderCat, shape=genderCat))+geom_point()+theme_bw()+ scale_colour_grey()+geom_abline(slope=0, intercept=0)+theme(legend.position="none")
+
+grid.arrange(p1,p2,nrow=1)
+```
+
+The best way to interpret all the coefficients in the light of the interaction is to write down two separate equations and apply what we've learnt so far.
+
+:::: {.whitebox data-latex=""}
+Q:Write down the two equations corresponding to the two values of gender
+::::
+
+Using the two regressions above:
+
+:::: {.whitebox data-latex=""}
+Q: For each coefficient except the intercept write down the:
+
+<ul>
+  <li>coefficient</li>
+  <li>what % change in the hourly pay does it imply?</li>
+</ul>
+::::
+
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**0 values and log transforms**
+
+:::
+Log transforms cannot be applied to variables with 0 or negative values. Think carefully whether you should change these data (e.g. by adding a fixed amount) in order to use this transform. One common solution is to add 0.5 to 0 values. Doing this needs to be justified.
+
+::::
+
+
+
+
+
+
+### Other possible transforms on the outcome:
+
+**Square root**
+
+This shrinks high values but less than the log transform. However it is very hard to interpret coefficients.
+
+**Box Cox**
+
+It often helps with the diagnostic statistics but is complex and again leads to very hard to interpret coefficients.
+

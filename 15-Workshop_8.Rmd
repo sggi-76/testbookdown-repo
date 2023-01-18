@@ -1,0 +1,224 @@
+# Workshop 8: Introduction to logistic regression
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Running logistic regressions with one predictor in *R*</li>
+  <li>Interpreting the coefficients in the case of a single continuous predictor</li>
+</ul>
+::::
+
+## Logistic Regression
+
+_Logistic regression_ is the standard way to model _binary_ outcomes, data where the _outcome_ is in the form 0/1 (or "yes, no" etc.)
+
+We'll look at data on survival of 237 patients admitted to an intensive care unit (ICU) in an American Hospital.
+
+```{r results='hide'}
+icu.dat<-read.csv("../Data/ICUdeaths.csv", header=TRUE)
+head(icu.dat)
+summary(icu.dat)
+```
+The data are as follows:
+
+* ``Lived``: lived to discharge (=1) , died in ICU (=0) 
+* ``Age``: Age of patient in Years
+* ``Sex``: female, male
+* ``SBP``: Systolic blood pressure at admission -- higher is bad for you
+* ``HR``: heart rate at admission -- higher is bad for you
+
+``Age``,``SBP`` and ``HR`` are continuous predictors.
+
+Let's look at the data. Because the outcome is binary, the best way to visualise the relationships between the outcome and the continuous predictors is via a boxplot. Bear in mind that the logistic model that relates the outcome to the continuous predictors is not linear so some caution is required when interpreting the boxplots. To remind you of this, I have flipped them on their side.
+
+Finally to model the relationship between categorical predictors we use bar plots.
+
+```{r tidy=TRUE, fig.width=7, fig.align='center', fig.asp=0.5}
+p1<- ggplot(icu.dat, aes(x=factor(Lived), y=Age))+ geom_boxplot()+ coord_flip()
+p1<-p1+theme_bw()+theme(legend.position = "none")+scale_fill_grey()
+
+p2<- ggplot(icu.dat, aes(x=factor(Lived), y=SBP))+ geom_boxplot()+ coord_flip()
+p2<-p2+theme_bw()+theme(legend.position = "none")+scale_fill_grey()
+
+p3<- ggplot(icu.dat, aes(x=factor(Lived), y=HR))+ geom_boxplot()+ coord_flip()
+p3<-p3+theme_bw()+theme(legend.position = "none")+scale_fill_grey()
+
+#cross tabulation plot: are two categorical variables related?
+p4<- ggplot(icu.dat,aes(x = factor(Sex), fill = factor(Lived))) +
+  geom_bar(position = "fill") +  scale_y_continuous(name = "Within group Percentage"
+                     , labels = scales::percent)
+p4<-p4+theme_bw()+scale_fill_grey()
+
+grid.arrange(p1,p2,p3,p4,nrow=2)
+```
+
+Let's focus on the continuous predictors for now. We'll return to the binary predictors later in the workshop.
+
+:::: {.whitebox data-latex=""}
+Q: Based on the plots above, which of the three *continuous* predictors do you expect to be associated with Lived?
+<ul>
+  <li>Specifically for *Age*, what do you expect the relationship between *ICU survival* and *Age* to be?</li>
+  <li>Will the coefficient of *Age* be positive or negative?</li>
+  <li>Will the odds ratio associated with this coefficient be above or below 1?</li>
+</ul>
+::::
+
+## One continuous predictor
+
+Let's start by adding ``Age``. The  ``R`` code function for logistic regression is similar to that for a linear regression. There are two important differences in the _name_ of the function which is  ``glm`` for _Generalised linear model_. ``glm`` also has an additional _argument_: ``family`` which takes on the value ``binomial(link="logit"))``. This is because there are other potential generalised linear models such as Poisson or negative binomial.
+
+```{r}
+icu.glm<-glm(Lived~Age,data=icu.dat,family=binomial(link="logit"))
+display(icu.glm)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Write down the equation for the fitted model
+::::
+
+## Interpreting the coefficients
+
+In order to get an idea of what the coefficients mean let's look at the plot. 
+
+**Plotting the model**
+
+First we need to prepare the data. The plot below shows on the x-axis the ``Age`` in the data grouped into age bands of 5. On the y-axis are the observed proportions of Lived (number Lived/total) in each ``Age`` band. Therefore we need to 
+
+* create ``Age`` bands (called) "bins",
+* estimate the proportions of patients who ``Lived=1`` in each ``Age`` band.
+
+I'll go over the code carefully as it is a bit complex. The difficult bit is getting the proportion of people who have lived in each age bands. We do this first:
+
+```{r}
+#create a new data frame (icu.breaks) 
+#which adds a column to icu.dat using the mutate function in "dplyr".
+#It has bins of 5 years starting at 15 and ending at 95
+icu.breaks<-mutate(icu.dat, bin=cut(Age,breaks = seq(15, 95, by=5)))
+
+#estimate the proportion of people that survived the ICU in each bin (y-axis)
+prop <- prop.table(with(icu.breaks, table(Lived,bin)),2)[2,]
+# the midpoint of each bin (x-axis)
+midbin<- seq(17.5, 92.5, by=5)
+#create a new data frame using these two variables
+icu.bin<-data.frame(midbin,prop)
+#icu.bin
+```
+
+The graph below is saying that for people of ``Age`` 15 about 90% survive once admitted to the ICU. This decreases to around 40% for 95 year old. Based on the points on ``Lived``=0 and 1 we see that people of all ages survive but that older people are much more likely to die (with very few die below the age of 50).
+
+```{r fig.asp=0.7, fig.width=6, echo=FALSE,fig.align='center', tidy=TRUE}
+#basic plot with white background
+p1<- ggplot(icu.breaks,aes(x=Age,y=Lived))+theme_bw()
+# geom_count is a type of point that takes into account how frequent that value is
+# it plots the Lived/not Lived 
+p1<-p1+ geom_count() 
+#adds the logisitc regression line of best fit 
+p1<-p1+ geom_smooth(method = "glm", method.args = list(family = "binomial"),se = FALSE)
+#plots the points corresponding to the proportions
+p1<-p1+ geom_point(data=icu.bin, aes(x=midbin,y=prop),shape=2,color="red", size=3) 
+
+p1
+```
+
+
+## Intercept
+
+The intercept is not really relevant in this example. The reason is that very small children (under 2) have a different pattern of survival when admitted to ICU than adults or older children. As with linear regression it is possible to centre and or standardise predictors in order to better interpret or compare the relative strength of coefficients. 
+
+Below is the output for the regression with centred ``Age``.
+
+```{r }
+cent.Age<-with(icu.dat, (Age-mean(Age)))
+cent.age.glm<-glm(Lived~cent.Age, data=icu.dat, family = binomial(link="logit"))
+display(cent.age.glm)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Interpret the intercept of the model with the centred *cent.Age* replacing *Age*. 
+::::
+
+## Coefficient of ``Age``
+
+The model above is almost linear over the range of ``Age``. This means that if we calculate the risk ratio associated with a change in 10 years at around ``Age`` 20-29 and then 70-79 the relative change will be similar for the whole range. Use the non-centered regression to do this as you don't then need to adjust the values of ``Age``.
+
+:::: {.whitebox data-latex=""}
+Q: Calculate the risk ratio associated with change from *Age* 20-29 and then another risk ratio for 70-79. Are these very different? 
+::::
+
+## Predicted vs Observed table -- a.k.a classification of confusion table
+
+One way to see how good the logistic model is to compare the observed outcome to the predicted outcome -- similar to validation. As a logistic regression outputs probabilities as opposed to a 0/1 outcome, we make the simple assumption that if a predicted probability exceeds 0.5 this corresponds to a predicted outcome=1
+
+```{r}
+pred.glm<-as.numeric(icu.glm$fitted.values>0.5)
+glm.dat<-data.frame(predicted=pred.glm, observed=icu.dat$Lived)
+table(glm.dat)
+```
+
+We can see that overall the model predicts correctly $\frac{19+152}{237} = 0.72$, i.e. 72% of the time. For those who lived $\frac{152}{152+57}=0.73$ i.e. 73% are correctly predicted and for those who died $\frac{19}{19+9}=0.68$ i.e 68% are correctly predicted. On all counts the model is doing well in terms of prediction.
+
+## A single binary predictor
+
+Let us now consider a single binary predictor in a logistic regression. When the outcome and the predictor are continuous we look at a scatterplot with the outcome on the y-axis and the predictor on the x-axis. When the outcome is continuous and the predictor is categorical we look at a scatterplot with the outcome on the y-axis and the predictor on the x-axis. We saw above that with a binary outcome and a continuous predictor we can look at "tilted" boxplots where the predictor is on the x-axis and the binary outcome on the y-axis. How do we visualise a relationship between a binary outcome and a categorical predictor? 
+
+First off we can produce a table that tells us how Sex and Lived are related. We can do this by looking at whether the relative proportions of each level of one category are similar across the levels of the other category.
+```{r }
+round(prop.table(with(icu.dat, table(Lived,Sex)),2),2)
+```
+The table tells us that amongst the females approximately ____% died and ____% survived the ICU and amongst the males approx ____% died and ____% survived the ICU. The proportions are similar but not identical, we might therefore concluded that we would expect at most a weak relationship (although this depends on sample size).
+
+As we saw in the plots at the beginning of the workshop, there is also a graphical representation of this table in figure A below the code. We see that the grey bars are at a similar levels corresponding to 29 and 36 %, indicating that Sex probably does not have a big impact on Lived. 
+
+What do a table and plot look like if the predictor _is_ associated with the outcome? Some code below where we artificially generate binary ``A`` and ``B``. The code also shows what ``A`` and ``B`` look like as well as the table of the relative proportions.
+
+```{r}
+#fake data with an association: 
+#A binary with 30 1's and 50 0's.
+A<-c(rep(1,30),rep(0,50))
+#rbinom generates n binary random variables with p(x=1)=p. 
+#size picks a sample of size from these
+B<-ifelse(A==1,rbinom(n=100,size=1,p=0.2),rbinom(n=100,size=1,p=0.8))
+#show A,B
+A
+B
+#There is a strong dependence between A and B
+AB<-data.frame(A=A, B=B)
+round(prop.table(table(A,B),2),2)
+```
+
+Plot B has the corresponding proportion plot for ``AB``:
+
+```{r tidy=TRUE, fig.align='center', fig.width=8, fig.asp=0.3}
+p1<- ggplot(icu.dat,aes(x = factor(Sex), fill = factor(Lived))) +
+  geom_bar(position = "fill") +  scale_y_continuous(name = "Within group Percentage"
+                     , labels = scales::percent)
+p1<-p1+theme_bw()+scale_fill_grey()+ labs(tag = "A")
+
+p2<- ggplot(data=data.frame(A,B),aes(x = factor(A), fill = factor(B))) +
+  geom_bar(position = "fill") +  scale_y_continuous(name = "Within group Percentage"
+                     , labels = scales::percent)
+p2<-p2+theme_bw()+scale_fill_grey()+ labs(tag = "B")
+
+grid.arrange(p1,p2,nrow=1)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Based on the table and the graphs above, do you think A is an important predictor of B? How do you know? Contrast this to the relationship between *Sex* and *Lived*.
+::::
+
+Let's run the univariate regression of ``Sex`` on ``Lived``.
+
+```{r}
+icu.glm.bin<-glm(Lived~Sex,data=icu.dat, family=binomial(link="logit"))
+display(icu.glm.bin)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Does the output of display() agree with your comments above?
+::::
+
+ 
+

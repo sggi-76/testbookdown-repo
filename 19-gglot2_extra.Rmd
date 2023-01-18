@@ -1,0 +1,199 @@
+# Appendix {-}
+
+## Appendix A: ``ggplot2`` package 
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+In this section there are example of plots using the ``ggplot2`` package. 
+<ul>
+  <li>Basic box and scatterplots</li>
+  <li>Arranging plots using ``gridExtra``</li>
+  <li>Adding points to a scatterplot</li>
+  <li>Using colour, shape and fill to add information about categorical variables to a box and scatterplot</li>
+  <li>Adding a straight line to a scatterplot</li>
+  <li>Adding a linear model to a scatterplot in simple linear regression</li>
+  <li>Adding multiple linear models to a scatterplot in multiple linear regression, without an interaction and with ith an interaction</li>
+  <li>Using ``facet_wrap`` to display data across categories</li>
+  <li>Barplots for cross tabulation</li>
+  <li>Special plots</li>
+</ul>
+::::
+
+Throughout we'll use the same data: The Boston Housing data. This has been modified so that ``ZN``, one of the predictors is a 3 level categorical predictor.
+
+```{r}
+Boston.dat<-read.csv("../Data/Bostonggplot.csv", header=TRUE)
+head(Boston.dat,3)
+```
+
+You will need the following packages:
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+```
+
+
+### Basic box and scatterplots
+
+Let's consider the continuous predictor ``LSTAT``.
+
+```{r fig.show='hide'}
+#aes stands for "aesthetics"
+#without +geom_point() the plot is empty
+ggplot(data=Boston.dat, aes(x=LSTAT, y=MV))+geom_point()
+```
+
+```{r fig.show='hide'}
+#aes stands for "aesthetics"
+#without +geom_boxplot() the plot is empty
+ggplot(data=Boston.dat, aes(x=ZN, y=MV))+geom_boxplot()
+```
+
+### Arranging plots to save space 
+
+To avoid using a lot of space, use ``grid.arrange()`` in the ``gridExtra`` package.
+
+```{r fig.show='hide'}
+#scatterplot
+p1<-ggplot(data=Boston.dat, aes(x=LSTAT, y=MV))+geom_point()
+#boxplot
+p2<-ggplot(data=Boston.dat, aes(x=ZN, y=MV))+geom_boxplot()
+#place them side by side (nrow=1) or one above the other (nrow=2)
+grid.arrange(p1,p2,nrow=1)
+```
+
+Most changes you want to make to the scatter/boxplot are now just a matter of adding something to ``p1``/``p2`` . Some changes have to be in the main body of ``ggplot()`` in aes``()``.
+
+```{r fig.asp=0.4}
+#scatterplot with different colours for different levels of ZN
+p1<-ggplot(data=Boston.dat, aes(x=LSTAT, y=MV, colour=ZN))+geom_point()
+#boxplot with colour in the boxplots
+p2<-ggplot(data=Boston.dat, aes(x=ZN, y=MV,fill=ZN))+geom_boxplot()
+#place them side by side (nrow=1) or one above the other (nrow=2)
+grid.arrange(p1,p2,nrow=1)
+```
+
+### Adding points and lines
+
+Let's add
+
+1. a point and a straight line to the scatterplot
+2. An interaction to a boxplot
+
+```{r}
+#basic scatterplot
+p1<-ggplot(data=Boston.dat, aes(x=LSTAT, y=MV, colour=ZN))+geom_point()
+#creating point
+new.point<-data.frame(LSTAT=30,MV=40,ZN="Zero")
+#adding point in red with a larger size and a different shape
+p1<-p1+geom_point(data=new.point, color="red", size=3, shape=3)
+#adding a straight line with intercept 50 and slope -2
+p1<-p1+geom_abline(intercept=50, slope=-2)
+
+#basic boxplot with ZN grouped by CHAS
+p2<-ggplot(data=Boston.dat, aes(x=ZN, y=MV,fill=factor(CHAS)))+geom_boxplot()
+#over two rows for grid.arrange
+grid.arrange(p1, p2, nrow=2)
+```
+
+Next, let's add
+    
+    1. A line of best fit to a scatterplot
+    2. Add points to the boxplot
+
+```{r fig.asp=0.4}
+#basic scatterplot
+p1<-ggplot(data=Boston.dat, aes(x=LSTAT, y=MV))+geom_point()
+#adding a line of best fit using a linear model (se=FALSE means no error bars)
+p1<-p1+geom_smooth(method="lm",se=FALSE)
+
+#basic boxplot with ZN 
+p2<-ggplot(data=Boston.dat, aes(x=ZN, y=MV))+geom_boxplot()
+#add the points and jitter them so they group together too much
+p2<-p2+geom_jitter(shape=16, position=position_jitter(0.2))
+
+grid.arrange(p1, p2, nrow=1)
+```
+
+### Adding a regression line
+
+If we add a ``geom_smooth`` to the plot with ``colour=ZN``, three non-parallell lines appear. Basically ``geom_smooth`` uses the interaction model to plot the lines. If we want to show what the lines look like without an interaction then we need to use ``geom_abline()``
+
+
+```{r fig.asp=0.4, tidy=TRUE}
+#basic scatterplot
+p1<-ggplot(data=Boston.dat, aes(x=LSTAT, y=MV, color=ZN))+geom_point()
+#adding a line of best fit using a linear model (se=FALSE means no error bars)
+p1<-p1+geom_smooth(method="lm",se=FALSE)
+
+#run the regression:
+lm.plot<-lm(MV~LSTAT+ZN, data=Boston.dat)
+#basic  scatterplot
+p2<-ggplot(data=Boston.dat, aes(x=LSTAT, y=MV, colour=ZN))+geom_point()
+#add three lines 
+p2<- p2+ geom_abline(intercept = coef(lm.plot)[1], slope = coef(lm.plot)[2], color="red")
+p2<- p2 + geom_abline(intercept = (coef(lm.plot)[1]+ coef(lm.plot)[3]), 
+                      slope = coef(lm.plot)[2],color="green")
+p2<- p2 + geom_abline(intercept = (coef(lm.plot)[1]+ coef(lm.plot)[4]), 
+                      slope = coef(lm.plot)[2],color="lightblue") 
+
+grid.arrange(p1, p2, nrow=1)
+```
+
+### Using ``facet_wrap()``
+
+Another way of displaying data by levels of a categorical variable is to use ``facet_wrap()``.
+
+```{r fig.asp=0.4}
+#basic scatterplot
+p1<-ggplot(data=Boston.dat, aes(x=LSTAT, y=MV, color=ZN))+geom_point()
+#adding a line of best fit using a linear model (se=FALSE means no error bars)
+p1<-p1+geom_smooth(method="lm",se=FALSE)
+p1<-p1+facet_wrap(~ZN)
+p1
+```
+
+### Barplots
+
+The barplot for the crosstabulation of two categorical variables looks like this:
+
+```{r}
+p1<- ggplot(data=Boston.dat,aes(x = factor(CHAS), fill = ZN)) +
+  geom_bar(position = "fill") +  scale_y_continuous(name = "Within group Percentage"
+                     , labels = scales::percent)
+p1
+
+```
+
+### Special plots
+
+Below are a few plots that require special code that we don't cover in depth in the course.
+
+```{r warning=FALSE}
+special.dat<- gather(data=Boston.dat[,-c(4,2)], -MV, key="var", value="value") 
+#gather (and similar functions like melt) stack 
+#the continuous predictor variables on top of each other. 
+#-MV means that MV stays the same
+#This allows us to use facet_wrap when the variables have different attributes
+#We remove columns 2 and 4 as these are the categorical variables 
+#To see the data type:
+#View(special.dat)
+#now for the plot using special dat and scales="free_x"
+#free_x means that the x-axis is not the same for each one of the plots
+p1<-ggplot(special.dat, aes(x = value, y = MV, colour=var))+geom_point(size=0.5)+geom_smooth(method="lm", se=FALSE, color="black") +facet_wrap(~ var, scales = "free_x")
+#legend is not useful in these multi-variable plots
+p1<-p1+theme(legend.position = "none")
+p1
+
+#categorical predictors (two in this case)
+special.dat<- gather(data=Boston.dat[,c(2,4,13)], -MV, key="var", value="value") 
+# fill=factor(value) means that each boxplot will have a different colour
+p2<-ggplot(special.dat, aes(x = factor(value), y = MV,fill=factor(value)))+geom_boxplot() +facet_wrap(~ var, scales = "free_x")
+p2<-p2+theme(legend.position = "none")
+p2
+```
+

@@ -1,0 +1,244 @@
+--- 
+title: "ST211: Applied Regression with R"
+author: "Sara Geneletti Inchauste"
+#date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: gitbook
+#bibliography: [book.bib, packages.bib]
+# url: your book url like https://bookdown.org/yihui/bookdown
+# cover-image: path to the social sharing image like images/cover.jpg
+description: |
+  This is the online version of the ST211 coursebook. Please only share with ST211 students
+link-citations: yes
+#github-repo: rstudio/bookdown-demo
+---
+
+
+```{r include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning = FALSE)
+library(arm)
+library(car)
+library(ggplot2)
+library(gridExtra)
+library(tidyverse)
+library(dplyr)
+library(broom)
+```
+
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**My details**
+:::
+
+<ul>
+  <li>Dr Sara Geneletti</li>
+  <li>Office hours: Tuesday 12:30-14:00. I take appointments on the student hub.</li>
+  <li>Please make sure you book at least one hour in advance or I may not be able to see you.</li>
+  <li>If you cannot come during my office hours because you have clashes then email me and we can find a suitable time.</li>
+  <li>Office: 8th floor of Columbia House, room 8.03 .</li>
+</ul>
+::::
+
+
+# Lecture 1: Introduction 
+
+This section motivates the course, outlines the formative and assessed coursework as well as setting down my expectations around group work. I won't cover everything in lectures so please read it in your own time.
+
+## Motivation
+
+- Human beings generate and observe massive amounts of data. 
+    * Online Shopping/Loyalty cards
+    * Visa/Passport/Citizenship Applications
+    * Census/Longitudinal Studies
+    * Political polls/Elections
+    * University Applications
+    * Medical records
+    * Weather
+    * Stock Market
+    * Social Media
+    * The list goes on and on...
+- With advances in computer science we can store and analyse more data than ever before.
+- We are in the era of _Data Science_ ... which is just a fancy word for statistics (as is machine learning)
+- One of the building blocks of statistics is _Regression Analysis_
+
+## Learning outcomes:
+
+-  _The aim of this course is to teach you how to perform linear and logistic regressions using ``R``, one of the most widely used statistics programming languages_
+- The course is hands on with a large programming component and very little theory (you cover that in ST300 if you want to)
+- At the end of this course you will be able to:
+    * Load and manipulate data in ``R``
+    * Perform, interpret and assess the fit of linear and logistic regressions in ``R``
+    * Have an idea of other types of regressions
+    * Have an understanding of how and when to use transformations
+    * Have an understanding of tools for model building, diagnostics and prediction
+  
+## Expectations
+
+ **I have high expectations of you!**
+ 
+- Coding can be difficult **especially** at the beginning. You will probably struggle and you will likely get frustrated. 
+- You are not alone and I expect you to interact with people in your group to understand errors and improve your coding
+- Think of this experience as going to the gym. It's not supposed to feel good until you get better at it!
+- I expect you to try and work out what the errors mean before you ask for help. By week 3 you should be able to navigate errors
+- I expect you to finish all the Moodle quizzes in your own time if you do not do so in the time allotted in the workshop. If you find that you are unable to finish the workshops then think of them as valuable revision over the Easter holidays. I will reset all the quizzes at that point to allow you to re-do them
+- I expect you to let me know at the beginning of workshops if you encountered any difficulties
+- I expect you to attempt to work well with other people in your group and make sure any problems are brought to me as soon as possible
+- *My expectations are no different from those of your future employers!!* 
+
+## Asking questions
+
+- _Always always always ask_ if you don't understand something! We can't guide you through something if you don't ask!
+- Chances are if you have a question others have the same one! You are doing everyone a favour
+- Feel free to _interrupt_ me during lectures/workshops to ask a question, I am always happy to answer!
+- The GTA and myself use ``R`` regularly: think of us as coding coaches
+
+## Groups
+
+- You will be asked to choose one person to be in your group. I will then pair you with another two people to form the final group. 
+- There is quite a lot of group work throughout the course and the two projects -- reading week and end of year are with your group
+- Make sure you exchange contact details (e.g. set up a whats-app group)
+- At the end of this chapter is a list of rules of group work. **Please read them**
+
+## Details of the course
+
+### Format of weekly lectures/computer workshops
+
+- 2 hours of "lectures" 
+     * 1 hour of standard lecture: the lecture notes are _gapped_ 
+     * 1 hour of an \texttt{R} demo you should follow along with: please bring a laptop if you are able
+- 1 hours of workshop in ``R``
+    + With me or the GTA
+    + Doing a Moodle based quiz
+- Course notes
+    * You have a bound book of course notes: BE AWARE THERE MAY BE MISTAKES 
+    * The book has the weekly lectures and workshops as chapters
+    * At the back of the book are also some excercises and special sections. I do except you to do them, either throughout the course or during revision as topics in these sections can come up in exams.
+    * If there are errors/omissions I will issue corrections on Moodle
+
+
+## Coursework
+
+There will be both summative and formative coursework. The reading week mini-project and the end of year project will all be based on the same data set *probably* from the Next steps longitudinal study.
+
+### Summative
+ 
+- _Reading week group work project_: **10%** of the final grade. This assessment will:
+    * Test basic understanding of how to perform multiple linear regression in ``R` including some diagnostics and interpretation
+    * Serve as a test of the group dynamics
+    * Introduce ``R` Markdown 
+    * Serve as a template for the end of year project
+- _End of year group/individual work project_: handed out in week 7/8 and due in week 2 of ST  
+    * Group work worth 55%: Multiple linear regression (including 5% for meeting logs)
+    * Individual work worth 35%: Logistic regression
+    * This assessment will:  
+        * Test the ability to perform an in-depth regression analysis of a large dataset  
+        * Test the ability to work well in a group 
+    
+### Formative
+
+- Weekly Moodle quizzes
+- You should do these as they are relevant to the exam, the projects and contain examinable material that we may not cover directly in lectures
+
+## Moodle
+
+- You'll find all the data sets and quizzes here.
+- All the instructions for the projects.
+- Instructions to get Zoom to work.
+- A list of common error codes
+- Weekly lecture capture
+- You'll also find some videos to help you with difficult parts of the course and some materials that you will need to learn - e.g. how to derive the least squares estimates for simple linear regression.
+
+
+## ``R``
+
+- ``R`` is an open source (free, open to contributions from anyone, anyone can see how it works) statistics scripting/programming language
+- A link is available on Moodle
+- It is the most used language for statistics (although Python is becoming increasingly widespread)
+- It has a large number of freely downloadable packages created by users to do almost anything in statistics
+- It is relatively easy to use compared to e.g. C, C++ which are more complex programming languages. 
+- We will use ``RStudio``, a versatile and user friendly interface for ``R``
+
+
+## ``RStudio``
+
+- It is worth downloading ``RStudio`` onto your laptops whether you bring these to lectures or not
+- The free desktop version is all you'll need.
+- A link is available on Moodle
+
+## Laptops
+
+- I encourage you to bring your laptop to the demo and the workshop.
+- There are PCs in your rooms but these are not always up to date
+- The lectures are designed to be followed without a laptop and while the ``R`` code will be included in the lecture notes from Week 2 onward I will not go over it in detail. That's what the workshops are for. I may make scripts available for some lectures -- check on Moodle
+- Whether you decide to bring your laptop to workshops or just use it for your projects you need to install ``R`` and ``RStudio`` on it.
+- It is pretty straightforward to download everything, however if you have an issue feel free to come to my office hour or bring your laptop the workshop where myself of the GTAs can have a look.
+
+
+## Rules of group work
+
+### Respect
+ _Have respect for each other_
+
+- Respect each others ideas
+- Respect the other group members
+- Don't interrupt each other
+- Everyone's opinion should count
+- Be honest with each other especially if you don't understand something -- explaining something can be as valuable for deeper understanding as having something explained to you.
+
+### Equal Participation/Contribution
+
+_All group members should do an equal amount of work_
+
+- Everyone should share the responsibility of the tasks
+- Don't take over and don't let others take over
+- Understand that different people have different ways of contributing to the work
+- In both projects each person will write up what they contributed to and what % of the overall work they did as well as whether there was anyone who did not contribute sufficiently 
+- This will make it difficult for any individual to avoid doing their fair share of work.
+- For the final year project I will also expect the group to hand in a plan of work to me by Week 10 detailing who will do what.
+- If a student in a group is singled out as having contributed less I will ask them to come to my office and explain their contribution to the project to me and a colleague. 
+
+### Common goals
+
+_Your group should have a common understanding of goals that need to be achieved_
+
+- Help each other to understand all concepts
+- It is not acceptable to exclude a person from group work
+- If you are feeling excluded or feel that others in your groups are being excluded please try and address this within the group
+- If there is no change please let me know
+
+### Compromise/Co-operation
+
+_Be open to compromise_
+
+- Be willing to cooperate with others on their ideas
+- Keep an open mind
+- Vote on disagreements
+
+### Communication
+
+_Effective communication_
+
+- Make sure everyone is able to be vocal about their ideas and problems -- this is especially important because not everyone is equally confident about expressing their ideas.
+- If some people find it difficult to participate in discussions then they can write their ideas up in an email/chat 
+- Voice your ideas no matter how "off" you may think they are
+- Listen effectively
+- Don't be overly critical
+
+### Schedule
+
+_Time management_
+
+- Attend and arrive on time to all group meetings
+- Be flexible about meeting times
+- Keep on task (limit talk about non-related events)
+
+### Problems
+
+_Address problems quickly_
+
+- If there are issues e.g. unequal work-load, bullying, illness or other please come to me IMMEDIATELY!
+- Depending on the complaint I will deal with this by contacting individuals in the group and/or the whole group. 
+- It is crucial that any issues are dealt with as soon as possible.
+- **I will not tolerate any form of bullying or harrassment and will take action if any is reported to me.**
+

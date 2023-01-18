@@ -1,0 +1,233 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+# Revsion
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+Review:
+<ul>
+  <li>Normal and Student-T distribution</li>
+  <li>Hypothesis tests</li>
+  <li>P-values</li>
+  <li>Statistical significance</li>
+  <li>Confidence intervals</li>
+</ul>
+::::
+
+## Normal distribution and Student-T distrubution
+
+First off let's look at the Normal distribution
+
+```{r echo=FALSE, fig.asp=0.5,fig.width=10}
+par(mfrow=c(1,2))
+x <- seq(-3, 3, length=100)
+hx <- dnorm(x)
+plot(x, hx, type="n", xlab="", ylab="",
+  main="Standard Normal Distribution",axes=F)
+axis(1,at=seq(-3,3,by=1))
+  lines(x, dt(x,1), lwd=2)
+x <- seq(-3, 3, length=100)
+hx <- dnorm(x)
+plot(x, hx, type="n", xlab="", ylab="",
+  main="Normal Distribution", axes=F)
+axis(1, at=seq(-3,3,by=1),labels=c(expression(paste(mu,"-3",sigma)),expression(paste(mu,"-2",sigma)),expression(paste("-1",sigma)),expression(mu),expression(paste(mu,"+1",sigma)),expression(paste(mu,"+2",sigma)),expression(paste(mu,"+3",sigma))))
+  lines(x, dt(x,1), lwd=2)
+
+```
+
+**Parameters of the Normal distribution**
+
+
+:::: {.whitebox data-latex=""}
+Q: What are the parameters of the standard normal distribution? Left hand plot.
+Q: What are the parameters of a generic normal distribution? Right hand plot.\\
+Q: Explain what they mean.
+::::
+
+The Normal (Gaussian) is typically used for tests and inference when the variance of a sample is known (but the mean isn't). However this is typically *not* the case 
+
+## The Student-T distribution 
+
+The Student-T is used to model Normally distributed data when we do not know the mean or the variance. This is the most common situation. The Student-T has one parameter: the degrees of freedom (typically the sample size-2). In most of the tests we conduct we have to estimate the variance from the data and so we can't formally use the Normal distribution but have to use the Student-T. In practice as we use ``R``  we don't actually need to worry about the details.
+
+However for our purposes (understanding tests, p-values and confidence intervals) we can work with the Normal distribution as for a sample over 30 it is a close approximation to the Student-T.
+
+## Histograms
+
+Histograms are a way of looking at how the data behave for continuous variables. They divide the continuous variable into sequential sections (called bins) and display the number of times that the value of the variable falls inside each section.
+
+29 students should have completed the Moodle questionnaire asking for their Height (in cm) and their Gender (Male,Female, Prefer not to say (PNTS).
+
+The histograms for the heights is shown below:
+
+- The x-axis of the histogram represents the range of possible values of height: 140 to 200. 
+- The bins marked in the plot below are in intervals of: 
+- The height of the bar in each bin represents the number of times the height falls into that bin: i.e. the frequency or count [how many students have heights between 175 and 180?:    ]
+- The y-axis is therefore the number of people in each section -- the count or frequency.
+- Sometimes histograms show the probability (count/total) instead 
+- The histogram is a way to represent the _observed distribution_ of the data
+
+```{r echo=FALSE, fig.height=4}
+df<-read.csv("../Data/ST211Heights.csv", header=TRUE)
+df2 <- data.frame(height= c(rnorm(n=40, mean = 168,sd = 7), rnorm(n=20, mean = 162,sd = 5)),sex=c(rep("M",40),rep("F",20)))
+ggplot(df, aes(x = Height)) + 
+    geom_histogram(aes(y =..count..),
+                   breaks = seq(140,200 , by = 5), 
+                   colour = "black", 
+                   fill = "white") 
+```
+
+A summary of the heights is given below
+```{r}
+print("summary")
+summary(df$Height)
+print("sd")
+sd(df$Height)
+#plot(seq(140,190,by=5),seq(140,190,by=5),col="0",xlab="height (cm)", ylab="frequency",axes=FALSE)
+#quantile(df2$height, p=c(0.025,0.975))
+```
+
+* The average height of students at the LSE is: 168 cm     
+* with _known_ standard error: 7cm  
+* The average height of students in this class is:
+* with _estimated_ standard error:  
+
+Overlay a normal distribution with mean and standard deviation of LSE students.
+
+### Questions:
+What questions can we ask about the heights of students?
+
+First we want to know whether the height of students from the last 2 years of ST211 is the same (on average) as that of LSE students. 
+
+:::: {.whitebox data-latex=""}
+Q: Based on the statistics above, do you think the distribution of students at the LSE is a good match for the height of students in this class? Compare:
+<ul>
+  <li>The averages</li>
+  <li>The spread</li>
+</ul>  
+::::
+
+## One sample z-tests
+
+* We're going to make an unrealistic assumption for the sake of simplicity. The two variances above for all LSE students and those in this class are close enough so we'll assume that they are the same and that therefore the variance of height of students in this class is _known_ to be: 
+* This means that we only need to look estimate _one_ mean
+* _If the averages are the same that means that the difference between them must be 0_
+
+## Hypothesis test
+
+Formally the we talk about hypotheses for statistical tests. In this case
+
+* The _null_ hypothesis: There is no difference in the means $\mu_{class}-\mu_{LSE}=0$
+* The _alternative_ hypothesis: There is a difference between them $\mu_{class}-\mu_{LSE} \neq 0$
+
+**Formula for the z-statistic**
+
+1. We subtract means in the numerator
+2. We _standardise_ in the denominator
+3. This value is called the _z-statistic_
+3. We compare it to the standard normal distribution
+
+Intuitively if the absolute value of the z-statistic is very small i.e close to 0 then we can assume that the distribution of our observed heights is the same as that of the LSE student heights. If on the other hand the absolute value is large then it is far from 0 and it becomes harder to assume that the data from this class comes from the LSE student height distribution. The larger the absolute value of the z-statistic the less realistic the null hypothesis. 
+
+Somewhat arbitrarily, if the z-statistic exceeds 1.96 in absolute value we say that we have no evidence in favour of the null hypothesis at the 5% level. This corresponds to the 95% points. In practice we round this to 2 so we can make quick calculations.  
+
+## Significance, P-value and confidence intervals
+
+When the z-statistic is within the 95th quantiles then we say that there is _not sufficient evidence to reject the null hypothesis_ and that the result is _not statistically significant at the 5% level_. If the z-statistic exceeds the 95th quantiles then we say there is evidence to reject the null hypothesis and the result is _statistically significant at the 5% level_.
+
+The _p-value_ associated with the test is the probability of observing the value we have or a larger value (in absolute terms): _provided the null hypothesis is true_. If the p-value is smaller than 5% (0.05) then we say that the result is _statistically significant at the 5% level_.
+
+Another way of looking at it is to see whether the 95% _confidence interval_  include 0. If it includes 0 then the result is _not statistically significant at the 5% level_. If the 95% confidence interval does not include 0 then the result is _statistically significant at the 5% level_.
+
+
+```{r echo=FALSE, fig.asp=0.5,fig.width=10}
+par(mfrow=c(1,2))
+x <- seq(-3, 3, length=100)
+hx <- dnorm(x)
+plot(x, hx, type="n", xlab="", ylab="",
+  main="P-value",axes=F)
+axis(1,at=seq(-3,3,by=1))
+  lines(x, dt(x,1), lwd=2)
+  x <- seq(-3, 3, length=100)
+hx <- dnorm(x)
+plot(x, hx, type="n", xlab="", ylab="",
+  main="Confidence Interval", axes=F)
+axis(1, at=seq(-3,3,by=1),labels=c(expression(paste(mu,"-3",sigma)),expression(paste(mu,"-2",sigma)),expression(paste("-1",sigma)),expression(mu),expression(paste(mu,"+1",sigma)),expression(paste(mu,"+2",sigma)),expression(paste(mu,"+3",sigma))))
+  lines(x, dt(x,1), lwd=2)
+
+```
+
+**Notes**
+
+Typically we focus on the 5% level of statistical significance for 2-tailed tests. However we could consider different levels such as 1% or 10%. In some disciplines 10% significance is considered the standard. Also, we used a two-tailed tests which means that the 95% confidence interval is symmetric around the mean and there is 2.5% on either tail. However for some situations a one tailed test is appropriate. For example if we want to compare two values where the difference can only be 0 or positive it would make sense to do this (e.g. growth of children).
+
+
+## Two sample T-test:
+
+The two sample t-test is similar to the one-sample test we saw above with some important differences:
+
+1. We have to estimate the averages for both samples as they are both unknown
+2. We have to estimate the variance from the data and therefore use a Student-T distribution
+3. Typically we assume that the two groups have a common variance (this can be relaxed) and estimate a _pooled standard deviation_
+
+**Formula for the t-statistic and the pooled standard deviation:**
+
+We'll apply this to the data on heights where we look at men and women and ask whether their heights can be considered the same:
+
+Males:
+```{r}
+with(subset(df,Gender=="Male"), mean(Height))
+with(subset(df,Gender=="Male"), sd(Height))
+```
+Females:
+```{r}
+with(subset(df,Gender=="Female"), mean(Height))
+with(subset(df,Gender=="Female"), sd(Height))
+```
+
+* The average and sd of height of women in this class is:
+* The average and sd of height of men in this class is:
+
+
+:::: {.whitebox data-latex=""}
+Q: Calculate the (pooled) standard deviation bearing in mind that there are 6 Females, one Prefer not to say and the rest are males. There are 29 students altogether.
+::::
+
+Below is the histogram showing men and women. Add two curves to the plot for the heights, one for men and one for women taking into account their means. The formula for the two-sample t-test with common variance is almost exactly the same as the one for the one-sample test and the principle is the same. If the means are the same then the distribution of the difference will be 0.
+
+
+```{r echo=FALSE, fig.height=4}
+ggplot(df, aes(x = Height)) +
+geom_histogram(aes(color = Gender, fill = Gender), 
+                position = "identity", bins = 10, alpha = 0.4) #+
+ # scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+ #scale_fill_manual(values = c("#00AFBB", "#E7B800"))
+
+```
+
+\newpage
+
+:::: {.whitebox data-latex=""}
+Q: Calculate the t-statistic bearing in mind that there are 6 Females, one Prefer not to say and the rest are males. There are 29 students altogether.
+::::
+
+This value is called the t-statistic and is compared to the Student-T distribution on $n_w + n_m - 2$ degrees of freedom but we can interpret it in the same way as the z-statistic. Here $n_w$ is the sample size of women and $n_m$ is the sample size of men.
+
+## Hypothesis tests
+
+Formally the we talk about hypothesis tests for statistical tests like the z and the t-tests: 
+
+* The _null_ hypothesis: There is no difference in the means $\mu_{m}-\mu_{w}=0$
+* The _alternative_ hypothesis: There is a difference between them $\mu_{m}-\mu_{w} \neq 0$
+
+:::: {.whitebox data-latex=""}
+Q: Is the t-statistics we calculated significant at the 5\% level? Why?
+::::
+
+You should remember the formulae as you might be asked to calculate a t-statistic in an exam. In practice for our course we get ``R`` to do it. 
+

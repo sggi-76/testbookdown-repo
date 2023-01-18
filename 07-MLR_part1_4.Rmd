@@ -1,0 +1,168 @@
+# Lecture 4: Multiple linear regression Part 1
+
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Extending linear regression to include one binary and one continuous predictor</li>
+  <li>Understanding interactions between a binary and a continuous predictor in multiple linear regression</li>
+</ul>
+::::
+
+## Data
+
+
+In this lecture we'll use the Study Skills data set again but we'll use _two_ predictors. ``Interesting`` and ``Study.Skills``.
+
+|       Name      |     Type    |                                                Description                                                |
+|:---------------:|:-----------:|---------------------------------------------------------------------------------------------------------| 
+| Interesting     |    binary   | Is stats interesting? 1 - yes , 0 - no                                                                            
+| Study Skills    | continuous   | 0-56 Total study skills - higher is more skills                                                                 |
+| Grade           | continuous  | grades in stats exam out of 100                                                                           |
+```{r echo=TRUE, results='hide'}
+Study_habits<-read.csv("Stats_study_habits_mlr.csv")
+head(Study_habits)
+```
+
+With two predictors the "true" regression looks like this:
+$$ y = \beta_0+ \beta_1 x_1 + \beta_2 x_2$$
+Using our data this becomes:
+$$ Grade =  \beta_0 + \beta_1 Study.Skills+ \beta_2 Interesting$$
+:::: {.whitebox data-latex=""}
+Q: Before running the regression, what do you think the signs of $\beta_1$ and $\beta_2$ are?\\
+
+Q: Do you think that Study.Skills and Interesting *interact*? I.e. do you think that students who are interested benefit more/less from having higher study skills that students who are not interested?  By "benefit" I mean "get higher grades".
+::::
+
+This is a complex question and I just want you to bear it in mind when we look at subsets regression and interactions later in the lecture. 
+
+Let's run the regression. Below are the values for the regression coefficients:
+```{r }
+grade.lm.1<-lm(Grade~Study.Skills+Interesting,data=Study_habits)
+coef(grade.lm.1)
+```
+The regression looks like this:
+$$ E(Grade) =`r round(coef(grade.lm.1)[1],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills + `r round(coef(grade.lm.1)[3],2)` Interesting $$
+## Plots for multiple predictors
+
+We saw how to plot this data for one predictor. Below is how it can be plotted for a continuous and a binary (or categorical) predictor.
+
+```{r fig.width=6, fig.asp=0.5, echo=FALSE}
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,colour=factor(Interesting)))
+p1<- p1 + geom_point(aes(shape=factor(Interesting)))
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+p1<- p1+ geom_abline(intercept = coef(grade.lm.1)[1], slope = coef(grade.lm.1)[2], color="black")
+p1<- p1 + geom_abline(intercept = (coef(grade.lm.1)[1]+ coef(grade.lm.1)[3]), slope = coef(grade.lm.1)[2], color = "gray")
+p1
+```
+
+:::: {.whitebox data-latex=""}
+Q: What do you notice about the slopes of the two lines? 
+::::
+
+The regression line above is using the value of interesting to change the intercept only. 
+So, when ``Interesting``=0 the line is 
+$$ E(Grade) =`r round(coef(grade.lm.1)[1],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills$$
+But when ``Interesting``=1 the line is
+$$ E(Grade)  =`r round(coef(grade.lm.1)[1],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills + `r round(coef(grade.lm.1)[3],2)`$$
+$$ = `r round(coef(grade.lm.1)[1],2) + round(coef(grade.lm.1)[3],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills$$
+:::: {.whitebox data-latex=""}
+Q: Do you think that imposing the same slope is sensible? Justify your answer based on the data/knowledge
+::::
+
+## Interpreting coefficients 
+
+Looking at the regression again:
+
+$$ E(Grade) =`r round(coef(grade.lm.1)[1],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills + `r round(coef(grade.lm.1)[3],2)` Interesting $$
+
+* The _intercept_: A students with no study skills (``Study.Skills``=0) and with no interest in statistics (``Interesting``=0) has an average predicted ``Grade`` of `r round(coef(grade.lm.1)[1],2)`. Again not very useful as ``Study.Skills``=0 is unlikely.
+* The _coefficient_ of ``Interesting``: When we look at students who have _the same_  level of ``Study.Skills`` then those who are interested in statistics are on average getting `r round(coef(grade.lm.1)[3],2)` more in their ``Grade`` than those who are not interested.
+* The _coefficient_ of ``Study.Skills``: We expect students to get on average `r round(coef(grade.lm.1)[2],2)` more in their ``Grade`` for every additional point in ``Study.Skills`` score for any level of ``Interesting``
+
+The basic idea behind interpreting coefficients is thinking how changing one predictor changes the average outcome _while keeping the values/levels of the other predictors the_ **same**. 
+
+## Subset Regression
+
+We can explore whether the same slope assumption is reasonable by running two separate regressions: one for those who are interested and another for those who are not:
+
+```{r fig.width=6, fig.asp=0.5, echo=FALSE}
+#Subset the data and then run the regression of Grade on Study.Skills
+Study_habits.Int1<-subset(Study_habits, Interesting==1)
+lm.Int1<-lm(Grade~Study.Skills,data=Study_habits.Int1)
+Study_habits.Int0<-subset(Study_habits, Interesting==0)
+lm.Int0<-lm(Grade~Study.Skills,data=Study_habits.Int0)
+#Now run the regression
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,colour=factor(Interesting)))
+p1<- p1 + geom_point(aes(shape=factor(Interesting)))
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+#Plot a line based on the lm.Int0 for the subset of people with Interesting=0
+p1<- p1 + geom_abline(intercept=coef(lm.Int0)[1], slope=coef(lm.Int0)[2], color="black")
+#Plot a line based on the lm.Int1 for the subset of people with Interesting=1
+p1<- p1 + geom_abline(intercept=coef(lm.Int1)[1], slope=coef(lm.Int1)[2],color="gray")
+p1
+```
+
+:::: {.whitebox data-latex=""}
+Q: What do you notice about the lines in this plot as compared to the one above?
+::::
+
+From the plot we can see that the slope for the students who are not interested is approximately 0. That means that having a higher study skills score doesn't help them to get better grades in their statistics exam. Students who are interested however do benefit from having a higher study skills score as this slope is positive.
+
+**So should we always do subset regression?**
+
+* No. You _should_ do if when the interest is in specific subsets/sub populations (e.g. countries, regions)
+* Other times it is not necessary. For example when there are few subsets (e.g. men vs women)
+* Or not every subset is relevant or important
+* Often including an _interaction_ takes into account differences between subsets.
+
+## Interactions
+
+As we saw from the subset regression the slopes of the regression lines for the interested vs un-interested students are quite different. This suggest that being interested has a different effect on the grades of those who are interested and those who are un-interested. We can incorporate this into a single regression using an interaction term: The interaction is the _product_ of the predictors:
+
+$$ Grade =  \beta_0 + \beta_1 Study.Skills+ \beta_2 Interesting+ \beta_3 Study.Skills \times Interesting$$
+```{r }
+grade.lm.int<-lm(Grade~Study.Skills*Interesting,data=Study_habits)
+coef(grade.lm.int)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Using the regression equation above write down two regression lines. One for students who are interested in statistics and one for students who are not interested. Once you have done this, plot the slopes on the scatterplot below.
+::::
+
+$$ E(Grade) =`r round(coef(grade.lm.int)[1],2)`+ `r round(coef(grade.lm.int)[2],2)` Study.Skills `r round(coef(grade.lm.int)[3],2)` Interesting + `r round(coef(grade.lm.int)[4],2)` Study.Skills \times Interesting $$
+
+
+```{r fig.width=6, fig.asp=0.5, echo=FALSE}
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,colour=factor(Interesting)))
+p1<- p1 + geom_point(aes(shape=factor(Interesting)))
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+#In ggplot it is much easier to plot the interaction!
+# se=FALSE doesn't add the standard error range to the regression. Try without it!
+#p1<- p1+geom_smooth(method="lm", se=FALSE) 
+p1
+```
+
+Before, ``Interesting`` only contributed to changing the intercept. Now it also contributes to changing the slope.
+
+## Interpretation with an interaction
+
+Once we've run a regression with an interaction it is not easy to interpret the parameters _on their own_. The best thing to do is to write down the separate regressions. This is of course more difficult and complex the more interaction terms there are. 
+
+However, if you want to try to interpret then:
+
+The _intercept_ and the _coefficient_ of ``Interesting`` alone are not easy to interpret as both require that the value of ``Study.Skills``=0, which as we said is unlikely. 
+
+* The coefficient of ``Study.Skills`` can be thought of as a comparison between the average ``Grade`` for students who are not interested when their study skill score increases by 1.
+* The coefficient of the interaction is the change in the coefficient (slope) of ``Study.Skills`` between students who aren't interested and those who are.
+
+## When to add interactions
+
+* Sometimes we are told by subject matter experts that interactions should be included. For example in medical data sex/gender are always included in the model and so are their interactions with other predictors.
+* When one or more of the main effects are large, it is a good idea to include interactions at least between the large main effects. 
+* When some subsets of the data are considered of particular interest (although sometimes subsets regression is better for interpretation if there are many groups -- especially if results need to be explained to subject matter experts who may not be great with equations)
+* _Note_: Interactions between two continuous predictors are somewhat harder to understand. They also often lead to multicollinearity and overfitting (discussed later). I would avoid them unless there are strong substantive reasons to add them. In that case there are some interesting ways of visualising them in plots.
+

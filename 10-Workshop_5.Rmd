@@ -1,0 +1,464 @@
+# Workshop 5: Multiple linear regression - Outliers
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Define different types of outliers</li>
+  <li>Identify outliers visually and using code</li>
+  <li>When and how to deal with outliers in a regression</li>
+</ul>
+::::
+
+## Outliers
+
+Outliers are defined in many ways.
+
+* Points that are "away from the main trend of the data". We can think in terms of x-direction, y-direction or both. 
+* Points that affect the estimates of the coefficients and standard errors and/or well as the fit of the model to the data.
+* Points that have large residuals
+
+Some points fulfill only one of the criteria above whereas others fulfill two or three.
+
+Let's load the Study habits data set and run the model with the interaction:
+```{r}
+Study_habits<-read.csv("../Data/Stats_study_habits.csv")
+grade.lm.2<-lm(Grade~Study.Skills*factor(Interesting),data=Study_habits)
+display(grade.lm.2)
+```
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Why is everything non-significant?**
+:::
+
+The sample sizes for the not-interested group is 27$<$30. Also, the model has to estimate 5 parameters. This means that the model does not have sufficient power and coefficients appear less significant than in a model without the interactions.
+
+::::
+
+
+
+```{r fig.show='hide'}
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)))
+p1<- p1 + geom_point(size=2) 
+p1<-p1+geom_smooth(method="lm", se=FALSE)
+#legend
+p1<-p1+scale_colour_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+p1
+```
+
+```{r echo=FALSE, fig.width=6,fig.asp=0.5, fig.align='center'}
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Interesting), color=factor(Interesting)))
+p1<- p1 + geom_point(size=2)  + theme_bw()
+p1<-p1+geom_smooth(method="lm", se=FALSE)
+p1<-p1+scale_colour_grey(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+p1<-p1+scale_shape_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+
+p1
+```
+*Note*:The plot in your notes is different from the one on your screen as it is optimised for printing and includes shapes as well as colours for the points in order to make it easier to distinguish between them.
+
+Looking carefully we see that there are a few points that stand out as being far away from the main _group_ of the points. The point with ``Grade`` above 60 and ``Study.Skills`` below 15. The point with ``Grade`` around 55 and ``Study.Skills`` below 10 and the point with 0 ``Grade``. This is somewhat arbitrary, we could also have included the point with ``Grade`` over 80 and ``Interesting``=0 (No).
+
+Let's pick these out and take a closer look:
+```{r}
+out.1<-which(Study_habits$Grade==min(Study_habits$Grade))
+out.2<-with(Study_habits, which(Grade<60 & Study.Skills<10))
+out.3<-with(Study_habits, which(Grade>60 & Study.Skills<15))
+Study_habits[c(out.1,out.2,out.3),c(2,7,8)]
+```
+
+## How to deal with outliers 
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Outlier questions**
+:::
+For any potential outlier, we need to ask ourselves the following questions:
+<ul>
+  <li>Is it a feasible result -- i.e. is it the result of a typo/error?</li>
+  <li>If it *is not* a feasible result then it is often fine to remove the point, but this needs to be argued and justified</li>
+  <li>If it *is* a feasible result then investigate what effect it is having on the regression</li>
+  <li>If it is a feasible point and does have an effect on the data?</li>
+    <ol>
+      <li>If the point is feasible but is extreme in many ways, or "odd", "atypical") then we can present multiple regressions and point out that for prediction a model without the point may be better</li>
+      <li>If the point is one of many others picked up by the outlier statistics below then unless we have strong reasons to believe that the points should be analysed separately or removed for other reasons, we can simply display the statistics and move on.</li>
+      </ol>
+</ul>
+
+**Do not use the statistics as a reason to remove points to improve the regression diagnostics.**
+::::
+
+:::: {.whitebox data-latex=""}
+Q: Looking at the point *out.1*, ask yourself the outlier questions. How might you deal with this point? 
+::::
+
+
+
+If it is a typo we can remove the point and re-run the regression:
+```{r}
+Study_habits.out.1<-Study_habits[-out.1,]
+grade.lm.no.out<-lm(Grade~Study.Skills*factor(Interesting),data=Study_habits.out.1)
+display(grade.lm.no.out)
+```
+The coefficients appear quite different, but what is actually happening?  Look at plot A in your notes. Code to reproduce it is below. 
+```{r echo-FALSE, fig.show='hide', tidy=TRUE}
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)))
+p1<- p1 + geom_point(size=2) 
+p1<- p1 + geom_point(data=Study_habits[out.1,], color="black")
+p1<-p1+geom_smooth(method="lm", se=FALSE)
+p1<-p1+scale_colour_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+p2<-ggplot()+ geom_smooth(data=Study_habits.out.1, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), method = "lm",se=FALSE, linetype="dashed")
+```
+
+```{r echo=FALSE, fig.width=10,fig.asp=0.8, fig.align='center'}
+get_legend<-function(myggplot){
+  tmp <- ggplot_gtable(ggplot_build(myggplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)
+}
+
+Study_habits.out.1<-Study_habits[-out.1,]
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Interesting), color=factor(Interesting)))  + labs(tag = "A")
+p1<- p1 + geom_point(size=2)
+p1<- p1 + geom_point(data=Study_habits[out.1,], shape=5, size=3)
+p1<-p1+geom_smooth(method="lm", se=FALSE)+ theme_bw()+theme(legend.position = "none")
+p1<-p1+scale_colour_grey(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+p1<-p1+scale_shape_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+
+p2<-ggplot()+ geom_smooth(data=Study_habits.out.1, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), method = "lm",se=FALSE, linetype="dashed")
+
+#legend
+p1<-p1+p2$layers[]
+
+#out.2
+Study_habits.out.2<-Study_habits[-out.2,]
+p3<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Interesting), color=factor(Interesting))) + labs(tag = "B")
+p3<- p3 + geom_point(data=Study_habits[out.2,], size=3, shape=5)
+p3<- p3 + geom_point(size=2)
+p3<-p3+geom_smooth(method="lm", se=FALSE)+ theme_bw()+theme(legend.position = "none")
+p3<-p3+scale_colour_grey(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+p3<-p3+scale_shape_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+
+
+p4<-ggplot()+geom_smooth(data=Study_habits.out.2, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), method = "lm",se=FALSE, linetype="dashed")
+#geom_smooth(data=Study_habits.out.2, 
+#aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), linetype="dashed"
+#, method = "lm",se=FALSE)
+
+#legend
+p3<-p3+p4$layers[]
+
+Study_habits.out.3<-Study_habits[-out.3,]
+p5<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Interesting), color=factor(Interesting)))  + labs(tag = "C")
+p5<- p5 + geom_point(data=Study_habits[out.3,], size=3, shape=5)
+p5<- p5 + geom_point(size=2)
+p5<-p5+geom_smooth(method="lm", se=FALSE)+ theme_bw()+theme(legend.position = "none")
+p5<-p5+scale_colour_grey(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+p5<-p5+scale_shape_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+
+p6<-ggplot()+geom_smooth(data=Study_habits.out.3, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), method = "lm",se=FALSE, linetype="dashed")
+#geom_smooth(data=Study_habits.out.2, 
+#aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), linetype="dashed", 
+#method = "lm", se=FALSE)
+
+#legend
+p5<-p5+p6$layers[]
+
+#Changed point
+Study_habits.newout<-Study_habits
+Study_habits.newout[out.3,]$Grade<-100
+Study_habits.newout[out.3,]$Interesting<-0
+
+p7<-ggplot(Study_habits.newout, aes(x=Study.Skills, y=Grade, shape=factor(Interesting), color=factor(Interesting))) + labs(tag = "D")
+p7<- p7 + geom_point(data=Study_habits.newout[out.3,], size=3, shape=5)
+p7<- p7 + geom_point(size=2)
+p7<-p7+geom_smooth(method="lm", se=FALSE , linetype="dashed" )+ theme_bw() + theme(legend.position="top")
+p7<-p7+scale_colour_grey(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+p7<-p7+scale_shape_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+#legend
+legend.p7<-get_legend(p7)
+p7<-p7 +theme(legend.position = "none") 
+
+p8<-ggplot()+geom_smooth(data=Study_habits, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), method = "lm",se=FALSE)
+
+p7<-p7+p8$layers[]
+
+grid.arrange(p1, p3, p5, p7, legend.p7, nrow = 3, heights=c(6,6,1))
+```
+
+In the plots A-D above the regression lines for the data with all the points are solid and those with a point missing are dashed. The point that has been removed is surrounded by a small diamond.
+
+:::: {.whitebox data-latex=""}
+Q: For plot A where we have removed *out.1* what has changed and what has stayed the same? Does this make sense?
+
+::::
+
+
+This point appears to be somewhat _influential_ in the model with an interaction (although everything remains non-significant). By _influential_ we mean is that it changes regression coefficients. 
+
+The other potentially outlying points are most likely not mistakes so we cannot remove them. However we can investigate whether it is _influential_ by removing it from the regression and investigating whether it changes the coefficients and looking at plot B.
+
+```{r echo=FALSE}
+Study_habits.out.2<-Study_habits[-out.2,]
+grade.lm.no.out<-lm(Grade~Study.Skills*factor(Interesting),data=Study_habits.out.2)
+display(grade.lm.no.out)
+```
+
+```{r fig.show='hide', echo=FALSE, tidy=TRUE}
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)))
+p1<- p1 + geom_point(size=2) 
+p1<- p1 + geom_point(data=Study_habits[out.2,], color="red", size=2)
+p1<-p1+geom_smooth(method="lm", se=FALSE)
+p1<-p1+scale_colour_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+
+p2<-ggplot()+geom_smooth(data=Study_habits.out.2, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), method = "lm",se=FALSE, linetype="dashed")
+
+#legend
+p1+p2$layers[]
+```
+```{r echo=FALSE, fig.width=6,fig.asp=0.5, fig.align='center'}
+```
+
+Removing point ``out.2`` in plot B only just changes the slope for the Interested. This is because it is in the "middle" of the range of ``Study.Skills`` and is therefore not very influential. Finally let us consider the third point ``out.3`` which is removed in plot C. As with the previous point they cannot be removed on the basis that it is incorrect, similarly it does not appear to be influential.
+
+```{r echo=FALSE, fig.show='hide', tidy=TRUE}
+p5<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)))
+p5<- p5 + geom_point(size=2) 
+p5<- p5 + geom_point(data=Study_habits[out.3,], color="black", size=2)
+p5<-p5+geom_smooth(method="lm", se=FALSE)
+p5<-p5+scale_colour_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+
+p6<-ggplot()+geom_smooth(data=Study_habits.out.3, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), method = "lm",se=FALSE, linetype="dashed")
+
+#legend
+p5+p6$layers[]
+
+```
+```{r echo=FALSE, fig.width=6,fig.asp=0.5, fig.align='center'}
+```
+
+### Modify a point
+
+Let's modify ``out.3`` so that it becomes influential. We replace it's value of ``Grade`` with 100 and Interesting with 0 instead of 1. The corresponding plot is D.
+```{r}
+Study_habits.newout<-Study_habits
+Study_habits.newout[out.3,]$Grade<-100
+Study_habits.newout[out.3,]$Interesting<-0
+```
+
+```{r echo=FALSE, fig.show='hide', tidy=TRUE}
+p1<-ggplot(Study_habits.newout, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)))
+p1<- p1 + geom_point(size=2) 
+p1<- p1 + geom_point(data=Study_habits.newout[out.3,], color="black", size=2)
+p1<-p1+geom_smooth(method="lm", se=FALSE, linetype="dashed")
+p1<-p1+scale_colour_discrete(name  ="Interesting",
+                            breaks=c("0", "1"),
+                            labels=c("No", "Yes"))
+
+p2<-ggplot()+geom_smooth(data=Study_habits, aes(x=Study.Skills, y=Grade,  color=factor(Interesting)), method = "lm",se=FALSE)
+
+#legend
+p1+p2$layers[]
+```
+
+Modifying ``out.3`` made a big difference! It has significantly changed the slope of the regression 
+for the un-interested. 
+
+
+:::: {.whitebox data-latex=""}
+Q: Using plots C and D and any other information, explain why the the new *out.3* has a larger impact on the regression line that the old *out.3*
+::::
+
+### A visual explanation of how outliers affect a regression line.
+
+<p>
+<center>
+![](../Week5/outliers.png){width=300px}
+<center>
+</p>
+
+## Outlier statistics
+
+Let's use the data with the modified ``out.3`` to examine the outlier statistics. This is for *exploratory* analysis. DO NOT EVER IN A PROJECT USE THESE STATISTICS TO REMOVE A BUNCH OF POINTS WITHOUT A CAREFUL AND DETAILED JUSTIFICATION! 
+
+* _Standardised residuals_ : These are residuals that have been transformed so they approximately follow a standard normal distribution. If they are above 3 in terms of absolute value then investigate
+* The _leverage values_ : These are like residuals but in the _horizontal_ direction. The rule of thumb is that a leverage value greater than $2 \frac{p}{n}$ is a  potential problem. $p$ is the number of predictors+1 (i.e. the number of estimated parameters) and $n$ is the sample size.
+* _Cook's distance_: $D_i = \frac{1}{p} \frac{h_i}{1-h_i} \tau_i^2$ where $\tau_i$ is the studentised residual[^1]. If these are above 1 then investigate
+* _DIFFTS_ : An alternative to the Cook's distance. If this is above 1 for small data sets (<30) or if it is above $2 \sqrt{\frac{p}{n}}$ for large data sets then investigate. 
+
+First, let's run the regression:
+
+```{r}
+grade.out<-lm(Grade~Study.Skills*Interesting,data=Study_habits.newout)
+display(grade.out)
+```
+
+In our case p=4, n=86
+
+Now let's set up a function that will identify the outliers automatically when we pass it a regression. This is in Moodle.
+
+```{r echo=TRUE, results='hide', tidy=TRUE}
+#This function displays the outlier statistics. Note that there is no limit to the number of these so it could blow up if there are a lot of them. You can modify the function to deal with this if you like
+
+show_outliers<-function(the.linear.model,topN){
+#length of data
+n=length(fitted(the.linear.model))
+#number of parameters estimated
+p=length(coef(the.linear.model))
+#standardised residuals over 3
+res.out<-which(abs(rstandard(the.linear.model))>3) #sometimes >2
+#topN values
+res.top<-head(rev(sort(abs(rstandard(the.linear.model)))),topN)
+#high leverage values
+lev.out<-which(lm.influence(the.linear.model)$hat>2*p/n)
+#topN values
+lev.top<-head(rev(sort(lm.influence(the.linear.model)$hat)),topN)
+#high diffits
+dffits.out<-which(dffits(the.linear.model)>2*sqrt(p/n))
+#topN values
+dffits.top<-head(rev(sort(dffits(the.linear.model))),topN)
+#Cook's over 1
+cooks.out<-which(cooks.distance(the.linear.model)>1)
+#topN cooks
+cooks.top<-head(rev(sort(cooks.distance(the.linear.model))),topN)
+#Create a list with the statistics -- cant do a data frame as different lengths 
+list.of.stats<-list(Std.res=res.out,Std.res.top=res.top, Leverage=lev.out, Leverage.top=lev.top, DFFITS=dffits.out, DFFITS.top=dffits.top, Cooks=cooks.out,Cooks.top=cooks.top)
+#return the statistics
+list.of.stats}
+```
+
+Now let's run it with our regression and consider the top 5 values for each statistic. For each statistic the outlier that fulfills the rule is shown, so for Std.Res it is the first row. Then the top highest values are shown for each criterion.  Again there are no values that fulfill the Cook's distance $>1$.
+```{r}
+#Apply to grade.out and look at the top 5 values in each statistic
+grade.out.stats<-show_outliers(grade.out, 5)
+grade.out.stats
+```
+
+In practice you often get points that violate more than one criteria. Look for these points. We use the function ``intersect()`` which gives us the intersection of its two arguments.
+
+```{r}
+Reduce(intersect,list(grade.out.stats$DFFITS,grade.out.stats$Leverage))
+```
+
+In our case there are no outliers for standardised residuals or Cook's distance but you could put the top 3 of the Cook's distance into the ``intersect()`` function. The points that are common between the DFFITS and the leverage are in fact the point we modified (69) and the other low ``Study.Skills`` high ``Grade`` point. (14). The ``Grade``=0 point was not identified as a problem in the intersection (although it does appear in some of the top 5 lists -- it corresponds to row 1.)
+
+## When to deal with outliers:
+
+1. You should try to identify potential outliers (or groups of outliers) from the beginning (e.g. from scatterplots or otherwise)
+2. However, you should deal with them towards the end of the analysis (after transformations typically -- we'll see what transformations are after Reading Week)
+3. If you can argue that an outlying point is a mistake (typo or similar) then you can remove it from your analysis -- although you should report that you've done that
+4. If you cannot argue that an outlying point is a mistake then:
+      i. investigate what makes it an outlier;
+      ii. does removing them change any of the regression parameters?;
+      iii. if not then keep them in the regression and stop worrying about them;
+      iv. if they do change any regression parameters present a regression with and without the point(s) and discuss which regression you prefer for understanding/prediction
+      v. if there are multiple outliers investigate whether they have common values for (some of) their predictors (e.g. all white men under 15);
+      vi. if they have common factors and there are a sufficient number of them consider running a subset regression for these points;
+      vii. if there are not enough of them or they have no common factors go back to point iii and iv.
+
+
+[^1]: A studentised residual for a point i rather than a standardised residual is when you fit a regression without i (say $lm_{-i}$) and then calculate the difference between $y_i$ and the estimated/predicted $\hat{y}_i$ using $lm_{-i}$. You then get a studentised residual for each point i. The studentised residual will typically be larger than the standardised residual for outlying points.
+
+### Using a Large data set
+
+When using a large data set the statistics above can often identify very many outliers. Let's use the Hourly pay dataset:
+
+```{r tidy=TRUE, results='hide' }
+Hourly_Pay<-read.csv("../Data/Large_Hourly_Pay.csv",header=TRUE, row.names = NULL)
+HP.lm<-lm(log(hourpay)~age+factor(gender)+HighestQual,data=Hourly_Pay)
+display(HP.lm)
+```
+
+For these data, I haven't printed output in the book as it is rather a lot. The code is available on Moodle. Below is the code for a plot of the ``log(hourpay)`` against age using shape to distinguish men from women and colour for ``HighestQual``. We can see that there are a lot of high residuals. 
+
+```{r tidy=TRUE, fig.width=10, fig.show=FALSE}
+ggplot(Hourly_Pay, aes(x=age,y=log(hourpay)))+geom_point()
+```
+
+Let's run our outlier function but only look at the top 10 values:
+
+```{r}
+HP.out<-show_outliers(HP.lm,10)
+```
+
+```{r echo=FALSE}
+print("Standardised residuals")
+HP.out$Std.res.top
+print("Leverage values")
+HP.out$Leverage.top
+print("DFFITS")
+HP.out$DFFITS.top
+print("Cook's d")
+HP.out$Cooks.top
+```
+
+There are a lot of outliers! It is worth noting that the Cook's distances are all way below 1. In this sort of situation it is difficult to justify removing any of the outliers. It may be worth looking at these values and trying to identify if they have common elements:
+
+```{r}
+common.out<-intersect(intersect(HP.out$Std.res,HP.out$DFFITS),HP.out$Leverage)
+common.out  
+```
+
+```{r}
+#options makes sure the output fits on the page 
+options(width=100)
+Hourly_Pay[common.out,]
+```
+
+```{r results='hide'}
+summary(Hourly_Pay)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Compare the values of the predictors for these common outliers to the mean/median values given in *summary()*. Can you identify why they are outliers or influential points? Should you remove 
+::::
+
+
+
+## Added variable plots
+
+We can also use the _added variable plots_ more commonly known as partial regressions to assess potential outliers. These plots are also useful to see whether a variable is a good predictor taking into account other variables in a multiple regression model. If we are interested in the relative importance of e.g. "x_1" in the regression $y = \beta_0 + \beta_1 x_1 + \beta_2 x_2+ \beta_3 x_3$ then:
+
+1. Run $y  = \beta_0 +  \beta_2 x_2+ \beta_3 x_3$ _without_ $x_1$ and take the residuals ($r_1$)
+2. Run $x_1 = \gamma_0 +  \gamma_1 x_2 + \gamma_2 x_3$: i.e. how $x_1$ depends on the other predictors, and take these residuals ($r_2$)
+3. Plot $r_1$ vs $r_2$
+
+The ``avPlots()`` function in the ``car`` package identifies 4 points: the two with the highest residual and the most extreme horizontal values (called partial leverage which we get from ``sort(lm.influence(grade.lm.int)$hat``)
+
+```{r fig.width=5.2, fig.asp=1}
+avPlots(grade.out)
+```
+
+The added variable plots identify the point we modified (69) and the 0 ``Grade`` point. We can also see that the slopes of all three plots are not horizontal, indicating that all three main effects are probably significant.

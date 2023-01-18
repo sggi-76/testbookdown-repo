@@ -1,0 +1,71 @@
+## Appendix B: Model building
+
+Now that you have all the main tools used in regression we can consider the "bigger picture" which is how to build regression models in statistcs.
+
+First off: **statistical modelling is something of an art**. If you give the same (complex) data set to two statisticians you may find that they come up with two different models. If they know what they are doing they won't be very different but they will be differences -- so there is not necessarily one right answer. You _must_ learn to use your judgement (and interactions with team members when working together) to make decisions about what steps to take in an analysis. So you _must_ be able to defend any steps you take. This means you _cannot_ analyse the data without thinking carefully about which steps to take or what context of the data and the research question are.
+_If you are not thinking about what the results mean at every step and are focussing only on diagnostics or plots then you are not doing it correctly!_
+
+Typically when faced with a new data set and a specific research question a statistician will do the following before starting to run regressions:
+
+* Think about what relationships you expect there to be between the variables (i.e. you expect age to be positively correlated with salary)
+    - but be prepared to reconsider your expectations when more variables come into play i.e. there may be confounding/non-linearity
+* Think carefully about whether there may be omitted predictors i.e. predictors you would like to have observed but haven't.
+    - Is it possible to obtain appropriate data on these from another source, do the experts have these data?
+    - If it is not possible to obtain data on these confounders then how may omitting them from the analysis bias the results 
+* If you are working with an expert then make sure you know what they think should be going on 
+      - beware though of assuming that the expert will be completely correct as they may have pre-conceptions
+* Look at the summary of the data
+* Check that you know which variables are what (type, role)
+* Plot those that are most relevant (typically the outcome vs the predictors)
+* Check these plots make sense (are they non-linear, do the signs make sense?)
+* Are there potential outliers? No need to do anything yet but bear them in mind.
+
+I cannot emphasise how important it is to have thought hard about the problem and the available data _BEFORE_ you start running regressions.
+
+Then start the analyses and do approximately this (not necessarily but often in this order) :
+
+1. Start off with a regression with all the variables that for non-statistical reasons (i.e. the expert says so) make sense as predictors
+2. Sometimes it makes sense to combine predictors in a score (as was done with the Study.Skills)
+3. Transform variables where this makes sense (e.g. if you want to be able to interpret the intercept or if there is clear evidence of non-linearity)
+4. If after an initial regression some predictors have large effects (check the standardised coefficients) check if interactions are also important
+5. Check overall model diagnostics and run the residual plots
+6. Identify outliers (as detailed in WorkShop 5)
+7. Run some cross-validation
+
+Note: There is typically no need to perform steps 6 and 7 for every single model.
+
+At various points you will have to decide whether to include a predictor or not. Do the following:
+
+  + If a predictor is non-significant at the 5% level but the sign is correct leave it (with some caveats see below)
+  + If a predictor is non-significant at the 5% level and the sign is not correct remove it 
+  + If a predictor is significant at the 5% level and does not have the expected sign then _think hard_! Why is this happening? Are there lurking/confounding variables? Have you made a mistake? If you think there are Consider that your expectations may have been wrong and that you need to re-think.
+  + If a predictor is significant at the 5% level and has the expected sign then keep them
+
+Caveats: If there are a lot of non-significant predictors then think if you need another one. If the predictor is a level of a categorical variable consider combining some levels of the predictor.
+
+During the course of an analysis you will typically try different things. Some of these are:
+
+* Add and remove predictors 
+* Combine many-levelled categorical variables
+* Try different transforms
+* Turn continuous variables into categorical variables
+* Analyse subsets of the data separately (e.g. men/women, interested/uninterested)
+* Remove outliers
+* Run cross-validation
+
+The aim is to get a model or models that are best at predicting and/or best at explaining the relationships between the variables given the data you have and the research question. Remember that the best models you can obtain using regression methods may not be very good. 
+
+Some rules of thumb
+
+1. A model with parameters that are easier to interpret is often preferable to one that has hard to interpret parameters
+2. A model which leads to better predictions is often preferable to one with worse predictions
+3. A simple model is often preferable to a more complex model 
+4. A model with better diagnostics is often preferable to one with worse ones
+
+The 4 criteria above are often at odds with one another especially when the improvement is not large (e.g. cross-validation predictions aren't that much better). For the course-work I am happy for you to present 2 models with a preference for one of them. 
+
+This is not always possible in a working context so decisions need to be made and justified -- however you should say that the model is not very good if that is the case. For instance you can discuss the results of cross-validation in lay terms saying that the predictions are not very good. An employer will want to know how certain you are of your model.
+
+
+
+  

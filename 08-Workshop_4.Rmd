@@ -1,0 +1,242 @@
+# Workshop 4: Multiple Linear Regression
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Running a MLR with multiple predictors</li>
+  <li>Understanding how to plot this to see interactions</li>
+  <li>Diagnostics Part 2: Adjusted $R^2$ and F-statistics</li>   
+</ul>
+::::
+
+
+## Preamble 
+
+Load the following packages:
+```{r}
+library(arm)
+library(ggplot2)
+```
+
+
+## Data
+
+In this workshop we'll use the Study Skills data set again but we'll consider the predictors ``Enjoy`` and ``Study.Skills``.
+
+|       Name      |     Type    |                                                Description                                                |
+|:---------------:|:-----------:|---------------------------------------------------------------------------------------------------------| 
+| Enjoy           |    binary   | Enjoy, 1 - yes, 0 - no                                                                           
+| Study Skills    | continuous   | 0-56 Total study skills - higher is more skills                                                                 |
+| Grade           | continuous  | grades in stats exam out of 100                                                                           |
+```{r}
+Study_habits<-read.csv("Stats_study_habits_mlr.csv")
+head(Study_habits, 4)
+```
+
+The equation is:
+$$ y = \beta_0+ \beta_1 x_1 + \beta_2 x_2$$
+Or in our case
+$$ Grade =  \beta_0 + \beta_1 Study.Skills+ \beta_2 Enjoy$$
+:::: {.whitebox data-latex=""}
+Q: Before running the regression, what do you think the signs of $\beta_1$ and $\beta_2$ are?
+
+Q: Do you think that ``Study.Skills`` and ``Enjoy`` *interact*? I.e. do you think that students who enjoy statistics get higher(lower) grades by having higher study skills that students who do not enjoy statistics?
+::::
+
+Let's run the regression to see what the least squares _estimates_ $\hat{\beta}$ are.
+
+```{r}
+grade.lm.1<-lm(Grade~Study.Skills+Enjoy,data=Study_habits)
+display(grade.lm.1)
+```
+The function ``coef()`` returns a _vector_ of coefficients. If we are just interested in their value this is a useful function. The first is always the intercept (unless a no intercept model has been specified) the rest are in the order in which they appear in the call. So for us ``Study.Skills`` first followed by ``Enjoy``
+
+```{r}
+coef(grade.lm.1)
+```
+
+
+## Plots for multiple predictors
+
+As we saw in the lectures it is often useful to produce plots that allow us to visualise the regression lines for different levels of a binary/categorical variable. Below is the plot corresponding to no-interaction. On the next page is the ``R`` code using ``ggplot()``. I will go over it carefully, there is space on the next page to write notes to help you understand what is going on. 
+
+:::: {.whitebox data-latex=""}
+Q: Based on the plot below do you think that the effect of ``Enjoy`` is very big? Justify your answer
+::::
+
+```{r fig.width=6.5, fig.asp=0.5, tidy=TRUE, echo=FALSE}
+#plotting the points and lines
+#set up the plot:
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,colour=factor(Enjoy)))
+# size and colour of the points by Enjoy
+p1<- p1 + geom_point(aes(shape=factor(Enjoy)))
+#Note: it's easier in ggplot to plot lines with interactions!
+#Plot the line with intercept and slope only for Enjoy=0
+p1<- p1+ geom_abline(intercept = coef(grade.lm.1)[1], slope = coef(grade.lm.1)[2], color="black")
+#Plot the line with intercept = intercept+coefficient of Enjoy and slope for Enjoy=1
+p1<- p1 + geom_abline(intercept = (coef(grade.lm.1)[1]+ coef(grade.lm.1)[3]),slope = coef(grade.lm.1)[2], color = "gray")
+# make it black and white (ignore for now but useful for black and white printing)
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+p1
+```
+```{r fig.width=6.5, fig.asp=0.5, tidy=TRUE, fig.show='hide'}
+#plotting the points and lines
+#set up the plot:
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,colour=factor(Enjoy)))
+# size and colour of the points by Enjoy
+p1<- p1 + geom_point(aes(shape=factor(Enjoy)))
+#Note: it's easier in ggplot to plot lines with interactions!
+#Plot the line with intercept and slope only for Enjoy=0
+p1<- p1+ geom_abline(intercept = coef(grade.lm.1)[1], slope = coef(grade.lm.1)[2], color="black")
+#Plot the line with intercept = intercept+coefficient of Enjoy and slope for Enjoy=1
+p1<- p1 + geom_abline(intercept = (coef(grade.lm.1)[1]+ coef(grade.lm.1)[3]),slope = coef(grade.lm.1)[2], color = "gray")
+# make it black and white (ignore for now but useful for black and white printing)
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+p1
+```
+
+As we saw in the lectures, when we don't include an interaction between ``Enjoy`` and ``Study.Skills`` the lines are parallel. This is because the line is using ``Enjoy`` to change the intercept only. The regression looks like this:
+
+$$ E(Grade) =`r round(coef(grade.lm.1)[1],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills + `r round(coef(grade.lm.1)[3],2)` Enjoy $$
+So, when ``Enjoy``=0 the line is:
+$$ E(Grade) =`r round(coef(grade.lm.1)[1],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills$$
+But when ``Enjoy``=1 the line is
+$$ E(Grade)  =`r round(coef(grade.lm.1)[1],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills + `r round(coef(grade.lm.1)[3],2)`$$
+$$ = `r round(coef(grade.lm.1)[1],2) + round(coef(grade.lm.1)[3],2)` + `r round(coef(grade.lm.1)[2],2)` Study.Skills$$
+
+## Interpreting coefficients 
+
+* The _intercept_: A students with no study skills (``Study.Skills``=0) and who does not enjoy statistics (``Enjoy``=0) has a predicted Grade of `r round(coef(grade.lm.1)[1],2)`. Again not very useful as ``Study.Skills``=0 is unlikely.
+* The _coefficient_ of ``Enjoy``: When we look at students who have _the same_  level of ``Study.Skills`` then those who Enjoy statistics are on average getting `r round(coef(grade.lm.1)[3],2)` more in their Grade than those who do not Enjoy.
+* The _coefficient_ of ``Study.Skills``: When we look at students who enjoy statistics we expect them to get on average `r round(coef(grade.lm.1)[2],2)` more in their grade for every additional point in study skills score. Same for students who do not enjoy statistics.
+
+The basic idea behind interpreting coefficients is thinking how changing one predictor changes the average outcome _while keeping everthing else the_ **same**. 
+
+## Subset regression
+
+Let's divide the data into two groups, those who enjoy statistics and those who don't and run separate regressions.
+
+First we create two new subsets:
+```{r}
+#Subset the data and then run the regression of Grade on Study.Skills for each subset
+Study_habits.Enj1<-subset(Study_habits, Enjoy==1)
+lm.Enj1<-lm(Grade~Study.Skills,data=Study_habits.Enj1)
+Study_habits.Enj0<-subset(Study_habits, Enjoy==0)
+lm.Enj0<-lm(Grade~Study.Skills,data=Study_habits.Enj0)
+```
+
+Then create two separate slopes on the same plot:
+```{r fig.width=6.5, fig.asp=0.5, tidy=TRUE}
+#Basic plot p1 of Grade against Study.Skills distingushing points by Enjoy
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,colour=factor(Enjoy)))
+p1<- p1 + geom_point(aes(shape=factor(Enjoy)))
+#Plot a line based on the lm.Int0 for the subset of people with Enjoy=0
+p1<- p1 + geom_abline(intercept=coef(lm.Enj0)[1], slope=coef(lm.Enj0)[2], color="black")
+#Plot a line based on the lm.Int1 for the subset of people with Enjoy=1
+p1<- p1 + geom_abline(intercept=coef(lm.Enj1)[1], slope=coef(lm.Enj1)[2],color="gray")
+#for black and white. you can ignore
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+p1
+```
+
+## Interactions
+
+From the scatterplot above and from the regression, the effect of ``Enjoy`` does not appear to be very strong, however there is no way of knowing this for sure until we look at the formal diagnostics later. So let's try adding an interaction. 
+
+```{r}
+grade.enjoy.lm.int<-lm(Grade~Study.Skills*Enjoy,data=Study_habits)
+display(grade.enjoy.lm.int)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Write down two regressions, one for the case where *Enjoy* is 0 and another for *Enjoy* is 1.
+::::
+\end{minipage}}
+
+\newpage
+The code for interactions in the ``ggplot()`` it much easier as you can see:
+
+```{r fig.width=6, fig.asp=0.5}
+#Basic plot
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade,colour=factor(Enjoy)))
+#add points
+p1<- p1 + geom_point(aes(shape=factor(Enjoy)))
+#In ggplot it is much easier to plot the interaction!
+# se=FALSE doesn't add the standard error range to the regression. Try without it!
+p1<- p1+geom_smooth(method="lm", se=FALSE) 
+#black and white colour scheme, you can ignore
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+p1
+```
+
+:::: {.whitebox data-latex=""}
+Q: Based on the plot and the output from the regression, do you think *Enjoy=1* makes a difference to the average *Grade*? Does it interact with *Study.Skills*? Justify your answer.
+:::: {.whitebox data-latex=""}
+
+## Diagnostics Part 2
+
+Diagnostic statistics are used to assess how well a model fits the data. They are useful tool for model comparison and fitting, however they should **never** be the only way you assess a model or make decisions about whether to keep a variable in a regression or not. Over the course of this term I will teach you other important approaches.
+
+_A QUICK GUIDE TO MODEL ASSESSMENT_ can be found at the back of the book. This will be useful for the Reading week project and is the *minimum* you need to do in any analysis.
+
+Remember that there are _five_ main diagnostics. We're familiar with some of them:
+
+1. The standard deviation of the regression line -- also known as the _residual standard error_
+2. The R$^2$ (``R-squared/Multiple R-squared``) and 
+3. The Adjusted R$^2$ (``Adjusted R-squared``)
+4. The significance at the 5% level of the p-value of the t-statistics of the regression coefficients
+5. The significance at the 5% level of the p-value of F-statistic of the regression 
+
+From ``display()`` we can get the $R^2$, the residual standard error and we can calculate the approximate 95% confidence interval which in turn tells us whether the coefficients are significant at the 5% level. Let's add all the predictors we have considered to be important to the regression. We also remove the Grade=0 point.
+
+```{r echo=TRUE}
+Study_Habits<-read.csv("../Data/Stats_study_habits_noout.csv",header=T)
+grade.lm<-lm(Grade~Study.Skills+Interesting+Enjoy,data=Study_Habits)
+display(grade.lm)
+```
+
+We cannot calculate the F-statistic or the Adjusted R$^2$ from this. In order to get all these values we use ``summary()``
+
+```{r}
+summary(grade.lm)
+```
+
+## F-statistic
+
+The F-statistic is a measure of how good the model _as a whole_ is. We are usually interested in the p-value associated with it. Let us consider a regression given by:
+
+$y_i = \beta_0+ \beta_1 x_{1i} + \beta_2 x_{2i} + \ldots  \beta_p x_{pi}$ 
+
+Then, for the F-test,
+
+* The _null hypothesis_ , $H_0: \,\, \beta_1=\beta_2= \ldots =\beta_p=0$
+* The _alternative hypothesis_ $H_1:$ is _at least one_ of $\beta_1,\beta_2, \ldots ,\beta_p$ _is not_ equal to 0.
+
+The F-test tells us whether there is at least one predictor that explains some of the outcome. It doesn't say which are the important ones. When there is a problem of *multicollinearity* (more later) it can be useful because the F-statistic may well be significant at the 5% level while all the predictors are not.
+
+:::: {.whitebox data-latex=""}
+Q: Based on the output of *summary()* above, is the F-statistic significant at the 5\% level? What does this imply for the model as a whole?
+::::
+
+The F-test is a special case of the _partial F-test_. The partial F-test can be used to assess the joint significance of a group of predictors. Let us again consider a regression given by:
+
+$y_i = \beta_0+ \beta_1 x_{1i} + \beta_2 x_{2i} + \ldots  \beta_p x_{pi}$ 
+
+Let's say we want to add the following predictors: $x_{p+1},\ldots,x_q$ where $q > p$ to the model. We may then run the following test:
+
+* The _null hypothesis_, $H_0: \,\, \beta_{p+1}=\beta_{p+2}= \ldots =\beta_q=0$
+* The _alternative hypothesis_, $H_1:$ is _at least one_ of $\beta_{p+1},\beta_{p+2}, \ldots ,\beta_q$ _is not_ equal to 0.
+
+We are therefore asking whether the subset $x_{p+1},\ldots,x_q$ of predictors are significant as a whole and adding them improves the regression model. 
+
+## Adjusted R$^2$
+
+The Adjusted R$^2$ is designed to be interpreted in the same way as the R$^2$ but for multiple rather than simple linear regression. It takes into account the loss of information incurred by adding a non-significant variable. In practice if a variable is non-significant this can be deduced from the 95% confidence interval. There are two rules of thumb with using the Adjusted R$^2$ as a measure of model fit. For a good model:
+
+1. It should be within 4% of the R$^2$ -- otherwise there are probably too many non-significant predictors in the model
+2. It should be close to 1 -- same as the R$^2$.
+
+**The formula for the Adjusted R$^2$**

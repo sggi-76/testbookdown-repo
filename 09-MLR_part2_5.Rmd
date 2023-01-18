@@ -1,0 +1,436 @@
+# Lecture 5: Multiple Linear Regression part 2
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Understanding Categorical variables</li>
+  <li>Using the partial F-statistic and  ``Anova()`` in the "car" package to assess the significance of a categorical variable in linear regression</li>
+  <li>Understanding the concepts of overfitting and multicollinearity</li>   
+</ul>
+::::
+
+## Data
+
+In this session we'll use the Study Skills data set. We'll initially include the categorical variable ``Social.Net`` and later the predictor  ``A.Level``. ``A.Level`` in principle has a range from 0-6, however in our data we only see the values 4,5 and 6 and only one person has a 4. As a consequence although it could be considered a continuous variable, we treat it as a categorical variable.
+
+|       Name      |     Type    |                                                Description                                              |
+|:---------------:|:-----------:|---------------------------------------------------------------------------------------------------------|   
+| Study Skills    | continuous   | 0-56 Total study skills - higher is more skills                                                                 |
+| Grade           | continuous  | grades in stats exam out of 100                                             
+| Social.Net      | categorical | 1 - less than 1 hour a week,2-between 1 and 4 hours,3-over 4 hours          
+| A.Level      | categorical | 4,5,6 the grade received at A-level for mathematics or statistics.
+
+```{r}
+Study_habits<-read.csv("../Data/Stats_study_habits_noout.csv",header=TRUE, stringsAsFactors = TRUE)
+```
+
+**Note** using ``stringsAsFactors = TRUE`` is essential if we want ``R`` to recognise character format variables as factors!
+
+### ``Social.Net``
+
+``Social.Net`` tells us how many hours students spend on social networks in a week. It is coded in the data as 1,2,3 representing less than one hour of social networking a week, between 1 and 4 hours and more than 4 hours a week respectively. 
+
+```{r echo=FALSE, fig.width=4, fig.height=3, warning=FALSE}
+p1<-ggplot(Study_habits, aes(x=factor(Social.Net), y=Grade, fill=factor(Social.Net)))
+p1<- p1 + geom_boxplot(fill="white")
+p1<- p1+ xlab("Hours spent on Social Networks")
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+
+p1<- p1 + scale_x_discrete(labels=c("1" = "<1", "2"= "1-4","3" = ">4"))
+p1
+```
+
+\fcolorbox{black}{white}{\color{black}
+\begin{minipage}[c][4.5cm][t]{\textwidth}
+\sffamily\fboxrule.1em\fboxsep1em
+Q: Based on the boxplot do you think that ``Social.Net`` has an impact on Grade? Why?
+
+\end{minipage}}
+
+## Categorical variables
+
+A variable is categorical when a variable has _discrete values_ such that the _difference_ between one value and another is not the same across variables. Ordinal variables are categorical variables with an inherent ordering (e.g. age or income bands)
+
+:::: {.whitebox data-latex=""}
+Q: Give an example of a variable with discrete values that is \textbf{not} categorical
+
+Q: Give an example of a variable with discrete values that \textbf{is} categorical
+::::
+
+Categorical variables behave the same way as binary variables except they have more levels. Consider adding ``Social.Net`` to the regression with ``Study.Skills``.  Like the binary variable ``Interesting``, ``Social.Net`` results in multiple lines, one for each level of the variable.
+
+Binary variables have 2 levels and are included as a single predictor in the regression. There is one line when the value of the binary variable =0 (or the _baseline_ , e.g. "Female") and another one for when the binary variable=1 (or the other value, e.g. "Male"). For categorical variables with k levels there are k lines and they are included in the regression as **k-1** predictor variables. These predictors are binary and they are called _dummy_ variables.
+
+``Social.Net`` has 3 levels coded as 1, 2, 3 corresponding to (<1,1-4,>4) indicating the number hours per week spent on social networks. So we define 2 new binary dummy variables: 
+
+$$
+    \text{f.Social.Net14}= 
+\begin{cases}
+    1 & \text{if Social.Net="1-4"}\\
+    0,              & \text{otherwise}
+\end{cases}
+$$
+and
+$$
+    \text{f.Social.Net4}= 
+\begin{cases}
+    1 & \text{if Social.Net=">4"}\\
+    0,              & \text{otherwise}
+\end{cases}
+$$
+This means that when ``f.Social.Net14=f.Social.Net4``=0 then``Social.Net``=<1. We then term ``Social.Net``="<1" the _baseline_.
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Dummy variables and baseline/reference levels**
+:::
+
+When we include a categorical variable with k levels in a regression we do two things:
+<ul>
+  <li>First we choose a baseline/reference level. The baseline level of the categorical variable is the one that corresponds to 0 values for all the other levels. It is also that the others will be compared with. Often this is the most commonly occurring or the one of most interest.</li>
+ <li>Second we create k-1 binary dummies, one for each of the non-baseline levels. For a data point with level j (where j is between 1 and k-1), the dummies will all have 0 value except for the one corresponding to level j.</li>
+</ul>
+::::
+
+Formally in the model without interactions:
+$$Grade=\beta_0 + \beta_1 Study.Skills + \beta_2 f.Social.Net14 +  \beta_3 f.Social.Net4$$
+This results in the following 3 lines:
+
+``Social.Net``=1, ("<1"):
+$$Grade=\beta_0 + \beta_1 Study.Skills$$
+``Social.Net``=2, ("1-4")
+$$Grade=(\beta_0+\beta_2) + \beta_1 Study.Skills$$
+``Social.Net``=3, (">4"):
+$$Grade=(\beta_0+\beta_3) + \beta_1 Study.Skills$$
+
+We can see from the formulae above that the coefficient of ``f.Social.Net14``, $\beta_2$ is the average difference in Grade between students who spend less than 1 hour on social networks and those who spend between 1 and 4 hours on social networks per week. 
+
+:::: {.whitebox data-latex=""}
+Q: What does the value of $\beta_3$ correspond to?
+
+Q: How would you calculate the average difference in Grade for students spending between 1 and 4 and those spending more than 4 hours per week on social networks?
+::::
+
+Let's run a regression. Notice that we have to tell ``R`` that ``Social.Net`` is a categorical variable by adding ``as.factor()`` or ``factor()``. 
+
+## Adding categorical predictors to regressions in \texttt{R}
+
+* When you add a categorical predictor to ``R`` you do not need to add each of the dummy variables as ``R`` recognises that the predictor is categorical and automatically creates the dummies. 
+* Bear in mind that if you do not set the reference level then ``R`` will choose the first in alphabetical/numeric order as the reference level. I'll show you later how to set the reference level.
+* ``factor()``: When a predictor is categorical and coded in the data set as an integer value then you must include it in a regression as ``factor(x)`` as otherwise ``R`` will not recognise it as a categorical variable and create dummies. It is not necessary when the variable is coded as text.
+
+```{r}
+grade.lm.1<-lm(Grade~Study.Skills+factor(Social.Net),data=Study_habits)
+display(grade.lm.1)
+```
+
+```{r echo=FALSE, fig.width=6, fig.height=3, fig.align="center"}
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Social.Net), colour=factor(Social.Net)))
+p1<- p1 + geom_point(aes(shape=factor(Social.Net)),size=2)
+p1<- p1+ geom_abline(intercept = coef(grade.lm.1)[1], slope = coef(grade.lm.1)[2], color="black")
+p1<- p1 + geom_abline(intercept = (coef(grade.lm.1)[1]+ coef(grade.lm.1)[3]), slope = coef(grade.lm.1)[2],color = "gray")
+p1<- p1 + geom_abline(intercept = (coef(grade.lm.1)[1]+ coef(grade.lm.1)[4]), slope = coef(grade.lm.1)[2], color = "lightgray") 
+p1<- p1  + theme_bw()
+p1<-p1+scale_colour_grey(name  ="Social Network",
+                            breaks=c("1", "2", "3"),
+                            labels=c("<1", "1-4", ">4"))
+p1<-p1+scale_shape_discrete(name  ="Social Network",
+                            breaks=c("1", "2", "3"),
+                            labels=c("<1", "1-4", ">4"))
+#p1<-p1 +labs(color="Social Network",shape="Social Network")                   
+p1
+```
+
+
+:::: {.whitebox data-latex=""}
+Q: Write down the regression lines for the 3 different levels of ``Social.Net``
+::::
+
+Note that the lines are very close to one another meaning that the difference between the baseline and the other categories is not large. This fits with the coefficients for the ``Social.Net`` categories not being significant at the 5% level. 
+
+## Adding an interaction
+
+If we add a ``Study.Skills`` and ``Social.Net``  interaction what does the regression look like? 
+
+```{r echo=FALSE, fig.width=10}
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Social.Net), color=factor(Social.Net)))
+p1<- p1 + geom_point(size=2)  + theme_bw()
+p1<- p1 + scale_colour_grey(start = 0.1, end = 0.6)  
+p1<-p1+geom_smooth(method="lm", se=FALSE)
+p1<-p1+ theme(legend.position = "none")
+
+p2<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Social.Net), color=factor(Social.Net)))
+p2<- p2 + geom_point(size=2)  + theme_bw()
+p2<-p2+geom_smooth(method="lm")
+p2<-p2+theme(legend.position = c(0.55,0.05), legend.direction = "horizontal")
+p2<-p2+scale_colour_grey(name  ="Social Network",
+                            breaks=c("1", "2", "3"),
+                            labels=c("<1", "1-4", ">4"))
+p2<-p2+scale_shape_discrete(name  ="Social Network",
+                            breaks=c("1", "2", "3"),
+                            labels=c("<1", "1-4", ">4"))
+
+grid.arrange(p1, p2, nrow = 1)
+```
+
+The regression output is:
+```{r, echo=FALSE}
+grade.lm.2<-lm(Grade~Study.Skills*factor(Social.Net),data=Study_habits)
+display(grade.lm.2)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Write down the regression lines for the 3 different levels of ``Social.Net``
+::::
+
+The interaction made a _big_ difference! None of the predictors are significant any more! To see this, compare the output above to that of ``grade.lm.1``. 
+
+There are two reasons.
+
+1. The first is that by allowing the interaction, the line of best fit for those spending less than one hour on social networks per week (black dots in the scatterplot) is driven by the point on the far left. 
+2. The second reason is that the smaller sample size means that there is insufficient _power_ to estimate the 6 parameters with more certainty -- i.e. with confidence intervals that do not include 0.
+
+```{r echo=FALSE}
+#aggregate(Grade~Social.Net,data=Study_habits,FUN=function(x) c(mean = mean(x), n = length(x), range=range(x)))
+#group_by(Study_habits, Social.Net ) %>% summarise(mean = mean(Grade), min=min(Grade), max=max(Grade), sd=sd(Grade), n = length(Grade))
+```
+
+We can however do subset regression:
+```{r echo=FALSE}
+Subset.lm = Study_habits %>% group_by(Social.Net) %>%
+  do(SNlm = lm(Grade ~ Study.Skills, data = .))
+
+
+Study_habits %>%
+  group_by(Social.Net) %>%
+  nest() %>%
+  mutate(model = map(data, ~ lm(Grade ~ Study.Skills, data = .x)), 
+         tidy = map(model, ~ tidy(.x))) %>%
+  unnest(tidy) %>%
+  #filter(term == 'Study.Skills') %>%
+  select(!c(data, model))
+```
+The table above shows in the firs column the value of ``Social.Net`` for this subset regression. So the first two rows correspond to the subset of students with ``Social.Net=1``. The second column indicates whether the parameter is the intercept of the slope of ``Study.Skills``. The remaining columns are the value of the estimate, its standard error, the value of the t-statistic and the corresponding p-value. We can also use the ``facet_wrap()`` function for ``ggplot()``.
+
+``facet_wrap()`` is a convenient way of showing the effect of interactions by only looking at the points involved in each interaction. 
+
+```{r fig.width=10, tidy=TRUE}
+p1<-ggplot(data = Study_habits, aes(x=Study.Skills, y=Grade))
+p1<-p1 +  geom_point(size=0.5) + labs(title = "Multiple plots for categorical variables")
+p1<- p1 +  facet_wrap(~ factor(Social.Net))+geom_smooth(method="lm")
+p1
+```
+
+:::: {.whitebox data-latex=""}
+Q: Based on the output of the subset regression and the plot, which of the slopes are significant at the 5% level? Confirm that the lines are the same as those in the interaction model
+::::
+
+## The partial F-statistic and ANOVA()
+
+The _partial_ F-statistic is useful when looking at the significance of categorical predictors in a regression as it asks whether a group of predictors are significant. Specifically, in order to understand whether a categorical variable as a whole is significant we run Analysis of Variance (ANOVA) which essentially runs F-tests. This asks whether the means of the outcome is different in different levels of the categorical predictor. Contrast this to the t-tests for the coefficients of categorical dummy variables in linear regression which ask whether the mean outcome in each level is different from the mean outcome in the baseline level.  
+
+## Assessing the overall significance of a categorical variable
+
+Let's turn to our Study habits data and include ``A.Level`` (as a categorical variable) as well as ``Social.Net`` and ``Interesting`` which is binary.
+
+```{r echo=FALSE}
+Study_habits %>% group_by(A.Level) %>%   summarise(Mean.Grade=mean(Grade),Size=n())
+```
+The table above shows the value of ``A.Level``, the mean grade in that level of ``A.Level`` and the number of students in that group. The regression test whether 67 is significantly different from 42. Even with a sample of 1 for ``A.Level``=4 this comes out as just significant as shown below: 
+
+```{r echo=FALSE}
+anova.lm<-lm(Grade~Interesting+factor(Social.Net)+factor(A.Level),data=Study_habits)
+display(anova.lm, detail=TRUE)
+```
+Rather than comparing whether levels of a categorical predictor as significantly different from one another in the regression a better approach is to try to understand whether the whole categorical variable is significant. We use the F-statistic for sub-groups of coefficients corresponding to the dummy variables associated with the categorical predictor. *Make sure to _capitalize_ the A in ``Anova()`` or you'll get a different function*. You will also need to load and install the "car" package for this ``Anova()`` function.
+
+```{r}
+Anova(anova.lm)
+#car::Anova(anova.lm)
+```
+This tells us that as whole ``A.Level`` is not significant at the 5% level. I.e. the mean of ``Grade`` for all three levels of ``A.Level`` are not significantly different. This makes more sense as the means are almost identical for the two levels with larger samples and not much can really be said about a sample of 1.
+
+## Overfitting
+
+Overfitting happens when you use _too many predictors_ in your linear model. In this case the model explains some of the random variation and therefore produces unreliable inference and predictions.
+
+Ways to prevent this are:
+
+1. Avoid fitting too many non-significant predictors (choose non-significant predictors only if they are borderline non-significant or if they are important and you don't already have a lot of these) 
+2. If two models produce very similar predictions prefer the model with fewer predictors
+3. Avoid fitting predictors that are correlated (more next)
+4. Use more structurally complex models such as multi-level models (e.g. in ST308)
+
+## Multicollinearity (a.k.a collinearity)
+
+We'll be looking at data which has the gender, height, handedness and right/left hand span of students and the fastest speed in mph (self reported) they have ever driven at. These are data from 1st year students in a US university.
+
+```{r results='hide'}
+Speed<-read.csv("../Data/Speed.csv",header=T)
+head(Speed)
+```
+
+The outcome of interest in this case is ``speed``. Let's see some plots:
+
+```{r echo=FALSE}
+get_legend<-function(myggplot){
+  tmp <- ggplot_gtable(ggplot_build(myggplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)
+}
+```
+
+```{r fig.align="center", echo=FALSE}
+p1<-ggplot(Speed, aes(x=Rhandspan, y=speed))+geom_point() +theme_bw() +geom_smooth(method="lm", se=FALSE)+ scale_color_grey() 
+p2<-ggplot(Speed, aes(x=Lhandspan, y=speed))+geom_point()+theme_bw()+ geom_smooth(method="lm", se=FALSE)+ scale_color_grey() 
+p3<-ggplot(Speed, aes(x=height, y=speed))+geom_point()+theme_bw()+geom_smooth(method="lm", se=FALSE)+ scale_color_grey() 
+p4<-ggplot(Speed, aes(x=Lhandspan, y=Rhandspan))+geom_point()+theme_bw()+scale_color_grey()
+p5<-ggplot(Speed, aes(x=Lhandspan, y=height))+geom_point()+theme_bw()+scale_color_grey()
+p6<-ggplot(Speed, aes(x=Rhandspan, y=height))+geom_point()+theme_bw()+scale_color_grey()
+grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 2)
+```
+Speed seems to have some linear relationships with at least ``Rhandspan`` and ``Lhandspan``. However all three variables are very highly correlated amongst themselves (check ``cor(height,Lhandspan)`` as well).
+
+What is the output of the regression with all continuous predictors?
+```{r echo=FALSE}
+Speed.lm.1<-lm(speed~height+Lhandspan+Rhandspan,data=Speed)
+display(Speed.lm.1)
+```
+All three variables are non-significant at the 5% level. But from the plots they look as though at least one has a linear relationship with ``speed``. Let's remove ``Lhandspan`` and re-run the regression:
+```{r echo=FALSE}
+Speed.lm.2<-lm(speed~height+Rhandspan,data=Speed)
+display(Speed.lm.2)
+```
+Now ``Rhandspan`` _is_ significant at the 5% level. 
+
+What happens is that the ``Lhandspan`` and ``Rhandspan`` are so highly correlated (i.e. highly _dependent_) that they are almost the same variable. This means that the $X$ matrix of values of the predictors is not full rank -- the rank of a matrix is the maximal number of linearly independent columns of $X$. This implies that $X^TX$ cannot be inverted. Because the vector of regression coefficients $\hat{\beta}$ is a linear transformation of the inverse of $X^TX$ ($\hat {\beta }=(X^T X)^{-1}X^{T}y$) we cannot estimate it.
+
+Out of curiosity what happens if we add ``gender`` to the regression?
+```{r echo=FALSE}
+Speed.lm.3<-lm(speed~height+Rhandspan+gender,data=Speed)
+display(Speed.lm.3)
+```
+
+The reason why is most clearly seen in these plots:
+
+```{r fig.align="center", echo=FALSE, fig.width=9, fig.height=3.5}
+p1<-ggplot(Speed, aes(x=Rhandspan, y=speed, colour=gender))+geom_point() +theme_bw() + scale_color_grey()+theme(legend.position = "bottom") +geom_smooth(method="lm",se=FALSE)
+p2<-ggplot(Speed, aes(x=Lhandspan, y=speed, colour=gender))+geom_point()+theme_bw()+ scale_color_grey()+theme(legend.position = "bottom")  +geom_smooth(method="lm",se=FALSE)
+#p3<-ggplot(Speed, aes(x=height, y=speed, colour=gender))+geom_point()+theme_bw()+ scale_color_grey()+geom_smooth(method="lm",se=FALSE)
+#legend.p2<-get_legend(p2)
+#p3<-p3 +theme(legend.position = "none", legend.box.background =  element_rect(colour = "black"))
+grid.arrange(p1, p2, nrow=1)
+```
+
+In practice multicollinearity is really only a problem when variables are *very* highly correlated. A statistic commonly used to diagnose multicollinearity is the Variance Inflation Factor (VIF). When this is more than 10 there is a problem.
+
+```{r}
+vif(Speed.lm.1)
+```
+As we can see there is a definite problem with ``LhandSpan`` and ``Rhandspan``.
+
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Things to note about collinearity**
+:::
+<ul>
+ <li> Collinearity statistics are based on correlations that are \textit{linear} rather than non-linear. You may well have predictors that are highly correlated to one another (dependent) but in a non-linear way.</li>
+<li> Collinearity refers to the dependence/correlation between two  or more \textit{predictors} and not to how they \textit{interact} in the outcome. Correlation between predictors does not depend on the outcome; \texttt{Rhandspan} and \texttt{Lhandspan} are correlated regardless of whether we consider speed or some other outcome. </li>
+<li> However two predictors may interact (be dependent) for one outcome and not for another.</li> <li> More formally collinearity happens when predictors are \textit{marginally} dependent whereas interactions happen the predictors are dependent \textit{conditional} on the outcome (but possibly marginally \textit{independent}).</li>
+</ul>
+::::
+
+**Exercises on how to interpret/visualise interactions between categorical variables are given at the back of the book**
+
+### Code for the plots in this Lecture:
+
+```{r results='hide', fig.show='hide', tidy=TRUE}
+## ----setup, include=FALSE------------------------------------------------
+library(ggplot2)
+library(gridExtra)
+
+## ------Data------------------------------------------------------------------
+Study_habits<-read.csv("../Data/Stats_study_habits_noout.csv")
+
+## ----Boxplot ----------------
+p1<-ggplot(Study_habits, aes(x=factor(Social.Net), y=Grade, fill=factor(Social.Net)))
+p1<- p1 + geom_boxplot(fill="white")
+p1<- p1+ xlab("Hours spent on Social Networks")
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+
+p1<- p1 + scale_x_discrete(labels=c("1" = "<1", "2"= "1-4","3" = ">4"))
+p1
+
+## ------Regression------------------------------------------------------------------
+grade.lm.1<-lm(Grade~Study.Skills+factor(Social.Net),data=Study_habits)
+display(grade.lm.1)
+
+## ----Plot without interactions-----------
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Social.Net), colour=factor(Social.Net)))
+p1<- p1 + geom_point(aes(shape=factor(Social.Net)),size=2)
+p1<- p1+ geom_abline(intercept = coef(grade.lm.1)[1], slope = coef(grade.lm.1)[2], color="black")
+p1<- p1 + geom_abline(intercept = (coef(grade.lm.1)[1]+ coef(grade.lm.1)[3]), slope = coef(grade.lm.1)[2],color = "gray")
+p1<- p1 + geom_abline(intercept = (coef(grade.lm.1)[1]+ coef(grade.lm.1)[4]), slope = coef(grade.lm.1)[2], color = "lightgray") 
+p1<- p1  + theme_bw()
+p1<-p1+scale_colour_grey(name  ="Social Network",
+                            breaks=c("1", "2", "3"),
+                            labels=c("<1", "1-4", ">4"))
+p1<-p1+scale_shape_discrete(name  ="Social Network",
+                            breaks=c("1", "2", "3"),
+                            labels=c("<1", "1-4", ">4"))
+#p1<-p1 +labs(color="Social Network",shape="Social Network")                   
+p1
+
+## ----Plots with interactions and with/without confidence  bands------------------------------
+p1<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Social.Net), color=factor(Social.Net)))
+p1<- p1 + geom_point(size=2)  + theme_bw()
+p1<- p1 + scale_colour_grey(start = 0.1, end = 0.6)  
+p1<-p1+geom_smooth(method="lm", se=FALSE)
+p1<-p1+ theme(legend.position = "none")
+
+p2<-ggplot(Study_habits, aes(x=Study.Skills, y=Grade, shape=factor(Social.Net), color=factor(Social.Net)))
+p2<- p2 + geom_point(size=2)  + theme_bw()
+p2<-p2+geom_smooth(method="lm")
+p2<-p2+theme(legend.position = c(0.55,0.05), legend.direction = "horizontal")
+p2<-p2+scale_colour_grey(name  ="Social Network",
+                            breaks=c("1", "2", "3"),
+                            labels=c("<1", "1-4", ">4"))
+p2<-p2+scale_shape_discrete(name  ="Social Network",
+                            breaks=c("1", "2", "3"),
+                            labels=c("<1", "1-4", ">4"))
+#grid.arrange allows us to put the figures together in a single plot
+grid.arrange(p1, p2, nrow = 1)
+
+
+## ----Plots using facet_wrap---------------------------------------------
+p1<-ggplot(data = Study_habits, aes(x=Study.Skills, y=Grade))
+p1<-p1 +  geom_point(size=0.5) + labs(title = "Multiple plots for categorical variables")
+p1<- p1 +  facet_wrap(~ factor(Social.Net))+geom_smooth(method="lm")
+p1
+
+## ----Initiall scatterplots for collinearity question--------------------------------------
+p1<-ggplot(Speed, aes(x=Rhandspan, y=speed))+geom_point() +theme_bw() +geom_smooth(method="lm", se=FALSE)+ scale_color_grey() 
+p2<-ggplot(Speed, aes(x=Lhandspan, y=speed))+geom_point()+theme_bw()+ geom_smooth(method="lm", se=FALSE)+ scale_color_grey() 
+p3<-ggplot(Speed, aes(x=height, y=speed))+geom_point()+theme_bw()+geom_smooth(method="lm", se=FALSE)+ scale_color_grey() 
+p4<-ggplot(Speed, aes(x=Lhandspan, y=Rhandspan))+geom_point()+theme_bw()+scale_color_grey()
+p5<-ggplot(Speed, aes(x=Lhandspan, y=height))+geom_point()+theme_bw()+scale_color_grey()
+p6<-ggplot(Speed, aes(x=Rhandspan, y=height))+geom_point()+theme_bw()+scale_color_grey()
+#grid.arrange allows us to put the figures together in a single plot
+grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 2)
+
+## -------------Plot to show the effect of gender on the regressions--------------
+p1<-ggplot(Speed, aes(x=Rhandspan, y=speed, colour=gender))+geom_point() +theme_bw() + scale_color_grey()+theme(legend.position = "bottom") +geom_smooth(method="lm",se=FALSE)
+p2<-ggplot(Speed, aes(x=Lhandspan, y=speed, colour=gender))+geom_point()+theme_bw()+ scale_color_grey()+theme(legend.position = "bottom")  +geom_smooth(method="lm",se=FALSE)
+#grid.arrange allows us to put the figures together in a single plot
+grid.arrange(p1, p2, nrow=1)
+
+```
+
+
+
+

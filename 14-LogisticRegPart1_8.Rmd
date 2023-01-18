@@ -1,0 +1,200 @@
+# Lecture 8: Logistic regression - Part 1
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Understanding of the logistic function and how it is used to link a continuous predictor with a binary outcome</li>
+  <li>Interpreting the coefficients in the case of a single continuous predictor</li>
+</ul>
+::::
+
+
+
+## Plot of observed probabilities vs predictor
+
+The plot below shows the probability of successfully putting a golf ball against the distance from the hole (feet) for a sample of 440 putts. Think about how you could model this relationship. 
+
+```{r fig.asp=0.7, fig.width=6, echo=FALSE,fig.align='center'}
+golf.dat<-read.csv("../Data/golf.small.csv",header=T)
+
+golf.breaks<-mutate(golf.dat,bin=cut(Feet, breaks=(max(Feet))))
+#head(golf.breaks)                                   
+golf.breaks<-golf.breaks %>% group_by(bin) %>% mutate(prop=mean(Success))
+
+ggplot(golf.breaks,aes(x=Feet,y=Success))+ geom_count() +geom_point(aes(x=Feet,y=prop),shape=2,color="red") +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE) +theme_bw()
+```
+
+:::: {.whitebox data-latex=""}
+<ul>
+  <li>Q: What are the triangles? </li>
+  <li>Q: What is the line?</li>
+  <li>Q: What are the black spots?</li>
+</ul>
+::::
+
+Consider the following:
+
+* Is the relationship linear?
+* What problems might you encounter with a linear model in this context
+* How might these data have been collected? What would the data in it's raw form look like?
+* What is likely success rate for 0 feet? For $\infty$ feet?
+
+## Logistic Regression
+
+A model that solves some of the issues above is the _logistic model_. It maps the real line to a probability rather than a value on the real line or a 0,1.
+
+Generally a logistic regression looks like this (our plot above is reversed because the probabilty decreases with the distance but otherwise the same principles apply)
+```{r echo=FALSE,out.width = "50%", fig.align = "center"}
+knitr::include_graphics("../Week9/LogReg_1.png")
+```
+
+If $p(y_i=1)$ is the probability of success and we are considering a single predictor $x$, then the logistic model says
+$$
+\begin{aligned}
+p_i & =p(y_i=1) \\
+\mbox{log} \left( \frac{p_i}{1-p_i} \right) &  = \beta_0+\beta_1 x_i \\
+\mbox{logit}(p_i) & = \beta_0+\beta_1 x_i
+\end{aligned}
+$$
+where 
+$$
+\begin{aligned}
+\mbox{logit}(z) & = \mbox{log} \left( \frac{z}{1-z} \right)
+\end{aligned}
+$$
+We assume that the $y_i$ are independent given the probabilities. The $\beta_0+\beta_1 x_i$ is linear in the predictors. An equivalent expression which is often used is
+$$
+\begin{aligned}
+p(y_i=1)  = & \frac{1}{1+e^{ -(\beta_0+\beta_1 x_1)}}\\
+ & = \mbox{logit}^{-1}(\beta_0+\beta_1 x_i)\\
+& =\mbox{invlogit}(\beta_0+\beta_1 x_i)
+\end{aligned}
+$$
+The inverse logit function is non-linear. If we want to calulate $p$ from the equation logit$(p_i) = \beta_0+\beta_1 x_i$ we use the following:
+$$
+\begin{aligned}
+p_i = \frac{1}{1+e^{ -(\beta_0+\beta_1 x_1)}}\\
+\end{aligned}
+$$
+
+This means that a _fixed increase_ (e.g. of 1) in a _predictor_ does _not_ necessarily _result_ in a _fixed increase_ in the _outcome_. The steepest changes occur in the middle of the curve. This means that logistic regression coefficients can be tricky to interpret. We'll go over many examples in the workshop and quizzes. 
+
+The formulae above have one predictor. For multiple predictors simply replace $\beta_0+\beta_1 x$ with $\beta_0+\beta_1 x_1 + \ldots + \beta_k x_k$
+
+### GLMs and MLE
+
+Logistic regressions are in the family of _Generalised Linear Models_. That is models with a linear fit but a non-linear outcome. The linear part is connected to the non-linear part by a _link_ function. For logistic regression this is the logit link. In the last lecture we'll have a quick look at Poisson regression which links a linear part to a model for _count_ data using a log link. 
+
+There is no closed form solution for the parameters that maximise the logistic regression equivalent to the sum of squared residuals. As a consequence for generalised linear models _Maximum Likelihood Estimation_ (MLE) is used to estimate the coefficients of the predictors. In simple terms MLE finds the parameters that maximise the likelihood (probability distribution function) for the model under consideration given the observed data. MLE typically uses numerical optimisation routines although applying MLE to linear regression is equivalent to least squares estimation.
+
+## One predictor
+
+As with any data set before you fit a regression it is important to consider what you anticipate the direction of the relationships between the predictors and the outcome to be.
+
+Let's look at the golfing data and fit a line using ``R``. 
+
+```{r warning=FALSE, echo=TRUE}
+golf.glm<-glm(Success~Feet,data=golf.dat, family=binomial(link="logit"))
+#Same as lm but glm and add family="binomial"
+display(golf.glm)
+```
+
+### Interpreting the logistic model
+
+:::: {.whitebox data-latex=""}
+Q: Using the regression output above write down the model for the logistic regression.
+::::
+
+## The intercept
+
+The intercept is the value of the logit(p(Success)) for 0 Feet: The invlogit of the intercept is the estimated probability of successfully putting a golf ball from 0 Feet.
+
+```{r}
+invlogit(coef(golf.glm)[1])
+```
+
+:::: {.whitebox data-latex=""}
+Q: What does the intercept mean in this case?
+::::
+
+## The slope
+
+Because the model is non-linear we need to choose where to evaluate the predicted outcome. See the plot below:
+
+```{r echo=FALSE, fig.width=5, fig.asp=0.7, fig.align='center'}
+ggplot(golf.breaks,aes(x=Feet,y=Success))+ geom_point() +geom_point(aes(x=Feet,y=prop),shape=2,color="red") +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial"), 
+    se = FALSE) +theme_bw()
+```
+
+
+:::: {.whitebox data-latex=""}
+Q: What is effect on success of moving from 1 foot to 2 feet away?
+<ul>
+  <li>Estimate the p(success|1 foot)</li>
+  <li>Estimate the p(success|2 feet)</li>
+  <li>Calculate their ratio: this tells us something about the relative change in probability: this is called the *risk ratio*</li>
+</ul>
+::::
+
+\newpage
+
+The values you should get are:
+
+```{r echo=FALSE}
+r1<-invlogit(coef(golf.glm)[1] + coef(golf.glm)[2]*1)
+r2<-invlogit(coef(golf.glm)[1] + coef(golf.glm)[2]*2)
+print(c(r1, r2, r2/r1))
+```
+So the probability of success at 1 foot is 91.6% and at 2 feet it is 88.8% that's a decrease in 3% of success when moving from 1 to 2 feet away. Not that much.
+
+Now let's do the same thing but in the centre of the curve where it is steepest.
+
+:::: {.whitebox data-latex=""}
+Q: What is effect on success of moving from 7 foot to 8 feet away?
+
+<ul>
+  <li>Estimate the p(success|7 foot)</li>
+  <li>Estimate the p(success|8 feet)</li>
+  <li>Calculate their ratio.</li>
+</ul>
+::::
+
+
+```{r echo=FALSE, results='hide'}
+r1<-invlogit(coef(golf.glm)[1] + coef(golf.glm)[2]*7)
+r2<-invlogit(coef(golf.glm)[1] + coef(golf.glm)[2]*8)
+print(c(r1, r2, r2/r1))
+```
+
+You should get that there is a change in 12% decrease in successful putting when you move from 7 to 8 feet.  
+
+
+## Interpreting coefficients of predictors as odds ratios
+
+Consider the case where Feet=2. The probability of success is then $p($ Success $|$ Feet $=2)=0.89$. The _odds_ of Success are $\frac{p}{1-p}$ which is $\frac{0.89}{1-0.89}=8.09$. So the odds of success are high at 2 feet.
+
+If we consider two cases, where Feet=2 and Feet =1 we get two odds. Their ratio -- the _odds ratio_ -- is another meausure of relative change in Success:
+
+* Feet 2 odds: $\frac{0.8894}{1-0.8894}=8.0416$
+* Feet 1 odds: $\frac{0.9159}{1-0.9159}=10.8906$
+* Odds ratio: $\frac{8.041}{10.806}=0.74$
+* Coefficient of Feet: $e^{-0.30} = 0.74$
+
+You can check that this holds for any change in 1 in Feet (e.g. from 7-8 feet)
+
+* **Advantages**: The odds ratio doesn't depend on the value of the predictor. 
+* You can think of the odds ratio as saying something about how success decreases as Feet increase. This is because the odds ratio < 1
+* **Disadvantage**: It is hard to interpret. What does an odds ratio actually mean? Unless you're a betting person it's not straightforward.
+
+I may ask you to calulate odds ratios in exams but I don't expect you to try and interpret it other than to comment on the direction of the effect: If the odds ratio is above 1 then the effect is positive, if it is below 1 the effect is negative. You should find that the direction corresponds to the direction of the risk ratios associated with the same predictor -- in the steepest part of the curve. The odds ratio CANNOT be negative. 
+
+
+

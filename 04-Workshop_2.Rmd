@@ -1,0 +1,367 @@
+# Workshop 2: Manipulating data with ``R``
+
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+Know how to
+<ul>
+  <li>load</li>
+  <li>check correctness of and</li>
+  <li>manipulate data sets in ``R``</li>  
+</ul>
+::::
+
+## Preamble
+
+* Create a new folder (Week 2)
+* Open ``RStudio`` 
+* Download the data (on the Moodle page for Week 2) into the folder
+* Check it's the right folder (``dir()`` lists what is in it)
+* If not:
+    * Go to the Files tab in the bottom right hand corner of ``RStudio``
+    * Navigate to the File where you saved the data (e.g. ST211Week2)
+    * Click on More at the top of the tab
+    * Select "Set as Working Directory" from the drop-down menu
+
+## ``R`` packages
+
+* Packages are libraries of functions in ``R`` code that someone else has designed and coded. 
+* In this course we'll use "arm","ggplot2" and some others
+* Today I need you to install \texttt{arm}, \texttt{ggplot2} and \texttt{gridExtra}
+
+##   Installing ``R`` packages
+
+For your laptops you need to install the packages first:
+
+* Go to Packages in the bottom right hand corner of ``RStudio``
+* Click on Install
+* Type arm/ggplot2/gridExtra and then click on Install
+* Some code will run and arm will appear on the list of User library
+
+##  Loading ``R`` packages
+
+To use ``R`` packages you can either:
+
+Type this in the command line (this is useful to do when you are saving code in a script so that you don't need to manually load packages before running it)
+
+```{r message=FALSE}
+library(arm)
+```
+
+Or via the ``Packages`` tab in the bottom right hand corner of ``RStudio``. From this tab select the "arm" package from the list of available packages
+
+##  The "arm" package
+
+The main advantage of "arm" is that is allows us to use the ``display()`` function with linear models. This has less output than the standard ``summary()`` command.
+
+**If you cannot load "arm"** then you can use ``summary()`` instead of ``display()``.
+
+## Reading data into ``R``
+
+Data is essential for analysis so learning to load it into ``R`` is very important. We load two types of data files into ``R``:
+
+* ``.csv`` -- When a file is a ``.csv`` file we load it using ``read.csv()``.
+* ``.txt`` -- For ``.txt`` file we use ``read.table()``. 
+
+``R`` can handle many more (e.g. ``.csv``, STATA and SAS files) with special packages as well. 
+
+* Load a file of ``age`` in years by ``gender`` (male is 1 and female is 0) and hourly pay (``hourpay``) in \£ taken from the British Household Panel Survey. 
+* The file is in Moodle. 
+* *Make sure you download it and save it into your working directory before you try and open it*. 
+
+```{r}
+first.dat<-read.csv("../Data/age_hourpay.csv",header = TRUE)
+wrong.dat<-read.table("../Data/age_hourpay.csv",header=TRUE)
+```
+
+* Loading data with the wrong command will result in a nonsense file although not always with an error. 
+* You can always look at the Environment tab (top left hand corner of ``RStudio``) to make sure. 
+* If the length is 1 or there is only 1 variable it is probably wrong.
+
+\small 
+* The name of the file "age_hourpay.csv" must be in "". 
+* This is the _path_ that ``R`` must take to get to the data file. 
+* If the file is not in the folder ``RStudio`` is running from then you will have to change the path accordingly. (Check using ``dir()`` )
+* ``header=TRUE`` tells ``R`` that the first line of the data should be taken as the _names_ of the columns and thus variables in the loaded file. 
+* Open your ``.csv`` file using Excel and you'll see what I mean.
+* When ``R`` reads a data file using ``read.csv`` or ``read.table`` (provided the correct function is used to read it) it creates a ``data.frame``. 
+* This is the type of data object we will be working with the most and today we will learn to manipulate it.
+* We read the data frame into an object(variable) rather than just writing  
+      - ``read.csv("age_hourpay.csv",header = TRUE)`` because often our data files are large and then the whole console is taken over by showing the data.
+* To see the data, go to the Environment tab in the top left hand corner and click on the grid shape at the end of the line corresponding to the data. The data will appear over the console.
+
+## Accessing elements of the data frame
+
+Many of the commands and functions for arrays/vectors work for data frames too. For example:
+```{r}
+dim(first.dat)
+first.dat[55,2]
+```
+
+:::: {.whitebox data-latex=""}
+Q: What is code to obtain the the age of the 934th individual in the data frame? Bear in mind that age is in the 2nd column. 
+::::
+
+## Some *functions* for data frames
+
+\footnotesize
+
+```{r}
+colnames(first.dat)
+head(first.dat)
+head(wrong.dat)
+```
+
+\footnotesize
+```{r}
+tail(first.dat)
+```
+* ``head()`` allows you to look at the first 6 rows of the data 
+* Whenever calling a large data set (even a large subset of data) it is useful to look at ``head()`` only as otherwise the data will fill all the console.
+
+```{r}
+head(first.dat, 3)
+```
+
+\footnotesize
+``summary()`` gives a summary of the data columns. 
+
+```{r}
+summary(first.dat)
+```
+
+You'll see that the ``summary()`` function is versatile and can be applied to many ``R`` objects.
+
+## Setting conditions
+
+Let's say we are interested in knowing whether there are people in this data that are below 18.
+
+1. First specify which data set
+2.  Then specify which variable using the ``$`` symbol
+
+```{r results='hide'}
+first.dat$age
+```
+
+* The ``$`` symbol says -- go into ``first.dat`` and take only the column named ``age``. 
+* This is a simple but clunky way of accessing the individual columns (variables) in the data. 
+* It can also be dangerous as ``RStudio`` sometimes auto-completes so if you have two variables named "age" and "agent" you may, without realising, end up with very different results.
+
+We could also have written:
+
+```{r results='hide'}
+first.dat[,2]
+```
+
+To use this however, you have to know which column corresponds to which variable. 
+
+As you can see we've produced lots of data and have maxed out the console. Always use ``head()``:
+
+```{r }
+head(first.dat[,2])
+```
+
+3. Now set your condition < 18.
+
+Start by trying this:
+
+```{r}
+head(first.dat$age<18)
+```
+
+* It is not ideal because it goes through first.dat[,2] row by row and answers the question "is this number under 18?". 
+* If it is not not the command assigns ``FALSE`` otherwise ``TRUE``. 
+* We usually want to know *which* elements satisfy the condition, i.e. we want a list of positions in the data frame of the elements where the age<18.
+
+4. So which are they?
+
+```{r results='hide'}
+which(first.dat$age<18)
+```
+* This gives their row number in first.dat. 
+* We can use this list to see how many there are, create a new data set, look at the values of gender for these, etc. 
+
+
+5. How many are they?
+
+```{r}
+length(which(first.dat$age<18))
+```
+
+6. Let's create a new data.frame with just these people and find out how many women and men there are.
+
+```{r}
+under18<-first.dat[which(first.dat$age<18),]
+table(under18$gender)
+```
+
+
+Say we want to ignore those below 18 years of age in our analysis. How do we do this? Here are three equivalent expressions
+
+```{r}
+over18<-first.dat[which(first.dat$age>=18),]
+dim(over18)
+over18<-first.dat[first.dat$age>=18,]
+dim(over18)
+over18<-subset(first.dat, age>=18)
+dim(over18)
+```
+* You can see that first.dat.over18 now has appeared in Environment. 
+
+* The simplest and most intuitive is the last command using ``subset()``. 
+* This function takes a subset of the data (the first argument) with criterion the second argument. 
+* In this case it takes first.dat and extracts the points where the age is greater or equal to 18. 
+* I prefer it to the other expressions as it doesn't have  the ``$``, the ``[]`` or the ``which()`` .
+
+``subset()`` can take multiple conditions:
+
+```{r}
+second.dat<-subset(first.dat, (age>=18 & hourpay<=50))
+```
+
+* To do regression we need to use data. 
+* We've see how to load data into ``R`` and how do do some manipulations (e.g. ``subset()``) and queries (e.g. ``which()``). 
+* We've seen how to use the ``$`` sign to access variables inside data sets, however if we are doing multiple things (such as the previous command) it starts getting really ugly. 
+
+``with()`` makes things simple and has the same syntax as ``subset()``. It takes two arguments. 
+
+* the name of the data set in ``R``
+* the function or operation you want to do to variables in the data. 
+
+```{r}
+with(first.dat, mean(gender==0))
+```
+
+## Scatter plots
+
+* One of the first things you should do with a new dataset is plot the data in whatever way is possible. 
+* For continuous variables a scatter plot is usually used. 
+* ``plot()`` is a very flexible function and traditionally did a lot of the plotting in ``R``.
+
+We'll plot age on the x-axis and log(hourpay) on the y-axis. Try plotting age against hourpay to see why we use logs
+
+```{r,fig.show='hide'}
+with(over18, plot(age,hourpay))
+with(over18, plot(age,log(hourpay)))
+```
+
+
+##  ``ggplot2`` package
+
+* For better and more complex plots
+* We will be using this most of the time. 
+* At the end of your book is a dedicated section on how to use this package with step-by-step instructions. 
+* *Spend some time going over this as we will be using it a lot.*
+* Install \texttt{ggplot2} and \texttt{gridExtra}
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+```
+
+\footnotesize
+```{r fig.height=4, fig.width=8}
+p1<-ggplot(over18, aes(x=age, y=log(hourpay),colour=factor(gender)))
+p1<- p1 + geom_point(size=0.5,aes(colour=factor(gender)))
+p1<- p1 +scale_colour_grey(start = 0.1, end = 0.6)  + theme_bw()
+p1<- p1+ theme(legend.position = c(0.35,0.9), 
+               legend.direction = "horizontal")
+p1<- p1+ ggtitle("log(Hourly pay) by age and gender")
+p1 <- p1+ geom_smooth(method="lm",fill=NA)
+
+
+p2<-ggplot(over18, aes(x=age, y=log(hourpay))) 
+p2<- p2 + geom_jitter(size=0.5,aes(colour=factor(gender))) 
+p2<-  p2 + scale_colour_grey(start = 0.1, end = .6)  + theme_bw()
+p2<- p2+ theme(legend.position = "none")
+p2<- p2+ ggtitle("log(Hourly pay) by age and gender")
+```
+
+```{r fig.height=4, fig.width=8, message=FALSE}
+grid.arrange(p1,p2,ncol=2)
+
+```
+
+## Saving data 
+
+* It is often the case that we want to change an existing data set or create a new one. 
+* In these situations we need to be able to save the data. For example we created the ``over18`` data from the ``first.dat``. 
+* Rather than have to re-create it every time we want to use it, we may find it easier to save it directly. 
+* There are a number of ways but the one I prefer is using ``write.csv``.
+
+```{r}
+write.csv(over18, "Over18_age_hourpay.csv")
+```
+* If you run this and get no errors then you should check that there is a new .csv file names Over18_age_hourpay.csv in your working directory.
+* It will also save in the image if you choose to save that
+
+The arguments of ``write.csv`` are:
+
+* the name of the ``data.frame`` to save in ``R``
+* the name of the .csv file the ``data.frame`` should be saved into -- because it is outside of ``R`` it needs to be in ""
+* ``row.names=FALSE`` is an optional argument. If it is not included in the call to ``write.csv`` then it automatically adds a column with the row number to the data. This is very annoying when you later open the dataset and find an additional row. 
+
+```{r}
+write.csv(over18, "Over18_age_hourpay.csv",row.names=FALSE)
+```
+
+and see what the .csv file looks like.
+
+## Built in functions
+
+``R`` has a large number of built in functions. We've seen a few already 
+
+* ``log()``
+* ``plot()``
+* ``read.csv()``
+* ``subset()``
+* ``which()``
+* ``length()``
+* ``dim()``
+
+* We'll learn many more and also how to write some basic functions. 
+
+* Functions work as follows:  
+    - They have a name e.g. ``plot()``.  
+    - Inside the brackets you enter the _arguments_ e.g. ``x``, ``y``, ``pch``, ``main`` etc.  
+    - Some arguments are mandatory (e.g. ``x`` and ``y``) and if you don't enter them or they are not of the right form then ``R`` returns an error.  
+    - Others (e.g. ``main``, ``pch`` etc.) are optional and ``R`` has some default values.
+
+## Other functions useful for stats
+
+* ``sum()``
+* ``mean()``
+* ``sd()``
+* ``summary()``
+* ``exp()``
+
+Try these with our data set.
+
+## Doing the same things to each row or column
+
+\footnotesize
+```{r}
+summary(over18)
+colMeans(over18)
+head(rowSums(over18))
+```
+* More about functions, loops, the ``ifelse()`` and ``apply()`` functions in an exercise in the back of the course notes.
+
+## Grouping dataframes
+
+* We can use ``subset`` to group data.
+* We can use ``aggregate`` to apply functions to subsets.
+
+```{r}
+aggregate(over18[,-1],over18[1],mean)
+```
+``aggregate`` takes the following arguments
+
+* The data to aggregate: in this case the age and hourpay columns
+* The column to aggregate them by: in this case the first column of the data
+* The function to apply: in this case the mean
+
+As you can see the mean age of women working is lower than that of men but those who do work earn more per hour.

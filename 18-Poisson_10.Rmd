@@ -1,0 +1,66 @@
+# Lecture 10: Poisson regression
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Basic understanding of Poisson count models</li>
+</ul>
+::::
+
+
+## Poisson models
+
+Poisson models are another type of Generalised Linear Model (GLM) where the outcome of interest is not a continuous variable as in linear regression or a binary outcome as in logistic regression but count data. Each point $y_i$ is $\in \{0,1,2, \ldots\}$. For example, the number (counts) of Facebook visits per day for a group of people. The function that links the counts with the linear combination of predictors is the _logarithmic link_.
+
+Formally the Poisson distribution is used to model the variation in count data.
+$$ 
+\begin{aligned}
+yi & \sim \mbox{Poisson}(\theta_i) \\
+\theta_i & = \mbox{exp}(\beta_0 + \beta_1 x_1 + \ldots + \beta_p x_p)
+\end{aligned}
+$$
+
+Let's dive straight in: We'll consider the data on Facebook visits.
+
+```{r}
+facebook.dat<-read.csv("../Data/Facebook.csv",header=TRUE)
+head(facebook.dat)
+```
+Let's immediately run a regression:
+
+```{r}
+#note that the call to glm has family=poisson rather than family=binomial
+facebook.pois<-glm(visits~age+student+gender,data=facebook.dat, family=poisson)
+display(facebook.pois)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Write down the model for this regression.
+::::
+
+## Interpreting the regression coefficients
+
+* The intercept does not mean anything in this context because newborns do not use Facebook. So exp(2.61)=13.6 is the expected number of visits to Facebook of a newborn Female who is not a student. You could centre ``age`` to interpret this coefficient. 
+* The coefficient of ``age`` is the expected difference in log(visits) for an increase in one year of ``age``. If we exponentiate the coefficient of ``age``. exp(-0.02)=0.98. This means that an increase in one year in age results in a decrease in number of visits to Facebook of 2%. 
+* The coefficient of StudentYes is the expected difference in log(visits) for students relative to non-students. exp(0.14)=1.15 meaning that the number of visits increasese by 15% for students relative to non-students.
+* The coefficient of genderMale is the the expected difference in log(visits) for a males relative to females. exp(0.02)=1.02 meaning that males visit Facebook 2% more often than females. 
+
+## Diagnostics
+
+These are the same as those for the logistic models and are intepreted in the same way.
+
+
+### Other things to consider when using Poisson Regressions
+
+* The _offset_: The Poisson model can be seen not as a model of count data directly but of a _rate_. 
+$$ y_i \sim \mbox{Poisson}(u_i \theta_i) $$ 
+where $u_i$, typically called the exposure (a baseline) and $\theta_i$ is the rate at which events (e.g visits) happen. The log($u_i$) is called the offset and added to the regression as ``~1`` and typically has a fixed coefficient of 1. The offset often represents an attribute of the population, e.g. the size of the population the count data come from. Then the parameters can be interpreted as rates of occurrence in the population.
+* _Overdispersion_: Because the Poisson distribution has one parameter, it doesn't have an independently estimable variance $\sigma$. This often means that the data are _overdispered_ i.e. more variable than the model can handle. This can be adjusted for by using ``family="quasipoisson"`` or the negative binomial family.
+* _Comparison with logistic-binomial models_: When the data are count data but _out of a fixed total_ n then logistic models can be used. 
+
+
+
+

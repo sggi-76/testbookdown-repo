@@ -1,0 +1,319 @@
+# Workshop 6: Transformations
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li> How to apply transforms in *R*</li>
+  <li> Assessing the effect of transforms on residual plots/model</li>
+  <li>Understanding how transforms affect interpretability of regression results</li>  
+</ul>
+::::
+
+### Packages
+
+```{r eval=FALSE}
+library(arm)
+library(ggplot2)
+library(gridExtra)
+library(tidyr)
+```
+
+## Transforms in ``R``
+
+In this workshop we will try a number of different transforms. Not all the transforms are well motivated in the examples below but I apply them anyway for teaching purposes. If you choose to use transforms it is important that you justify carefully why you use them. Valid reasons include:
+
+1. To improve interpretation
+2. To improve prediction/model fit
+3. Because it makes sense from a theoretical point of view
+
+For point two you need to carefully consider whether the transforms improve model fit enough to compensate for the loss of interpretability, although this is less of a concern if the main aim of the analysis is prediction.
+
+We'll use the Hourly Pay data again but with more predictors. We will also reduce the data-set to avoid values were ``hourpay`` are above £150 per hour. 
+
+```{r results='hide'}
+Hourly_Pay<-read.csv("../Data/Large_Hourly_Pay.csv",header = TRUE, stringsAsFactors = TRUE)
+Hourly_Pay_NoRich<-subset(Hourly_Pay,hourpay<=150)
+summary(Hourly_Pay_NoRich)
+```
+
+### Some data re-arranging
+ 
+ If nothing is changed ``R`` chooses the baseline category for categorical variables as the first in alphabetical order. This is often not the best choice. Better choices are 
+ 
+a) the most common, 
+b) the one of most interest for comparison. 
+
+For our data we need to choose baseline levels for the categorical values and make sure ``R`` knows about it. We pick the level with the most values. We find out which these are by looking at ``summary()``. We'll also rename the gender variable so that instead of 0,1 it is to "M" and "F" respectively.
+ 
+```{r}
+Hourly_Pay_NoRich$OwnHouse<-relevel(Hourly_Pay_NoRich$OwnHouse,ref="Own")
+Hourly_Pay_NoRich$Ethnicity<-relevel(Hourly_Pay_NoRich$Ethnicity,ref="White")
+Hourly_Pay_NoRich$HighestQual<-relevel(Hourly_Pay_NoRich$HighestQual,ref="DegreeHE")
+Hourly_Pay_NoRich$gender<-ifelse(Hourly_Pay_NoRich$gender==0,"M","F")
+```
+
+The ``relevel()`` function takes the categorical predictor as the first argument, ``ref=`` assigns the baseline level.
+
+Before going any further let's think about what you expect the signs associated with the coefficients for the various predictors:
+
+|Name         |sign   |Name             |sign     |Name |sign 
+|:-------------------:|:------:|:--------------------------:|:------:|:---------------------------------:|:-----:|
+|Rent vs Own | $\color{white}{\text{beautiful red}}$      |Chinese vs White   |$\color{white}{\text{beautiful red}}$         |Alevel vs DegreeHE
+|Other vs Own| $\color{white}{\text{beautiful red}}$      |Afric/Carib vs White | $\color{white}{\text{beautiful red}}$        |GCSE vs DegreeHE           
+|Woman vs Man | $\color{white}{\text{beautiful red}}$         |ISC vs White | $\color{white}{\text{beautiful red}}$           |None vs ALevGCSE
+|age          | $\color{white}{\text{beautiful red}}$         |TotalHoursWorked |  $\color{white}{\text{beautiful red}}$          |AgeYoungDep
+
+Plot the continuous predictors against the outcome. 
+
+```{r fig.asp=0.5,fig.width=10,fig.align="center", tidy=TRUE}
+#Using facet_wrap to display the scatterplots
+  #line.1
+special.dat<-gather(Hourly_Pay_NoRich[,c(3,4,6,7),] ,-hourpay, key="var", value="value") 
+  #line.2
+p1<-ggplot(special.dat,aes(x = value, y = log(hourpay)))+geom_point(size=0.5)+geom_smooth(method="lm", se=FALSE, color="black") +facet_wrap(~ var, scales = "free_x")
+#for book
+p1<-p1+theme_bw()+scale_color_grey()+theme(legend.position = "none")
+ #line.3
+p1
+```
+
+line.1: Defines the data set to pass to the plot. If you type ``colnames(Hourly_Pay_NoRich)`` you'll see that columns 3,4,6 and 7 correspond to the numeric (and possibly continuous) variables in the dataset. ``gather()`` is a clever function from the "tidyr" package that stacks the predictors on top of each other in one variable, called ``value``. Then ``R`` treats the different "levels" of value, called ``variable`` as it would e.g. levels in a categorical variable. Have a look at ``special.dat`` to see exactly what this means.
+line.2: Defines the x and y's in the ``ggplot()``
+line.3: Plots by setting x=value as defined above, ``facet_wrap()`` make the three plots of log(``hourpay``) against the variables in the data frame that aren't y or the shape/colour variables by using ``free_x``.
+
+Also the boxplots for the categorical predictors.
+```{r fig.asp=0.5,fig.width=10,fig.align="center", tidy=TRUE, warning=FALSE}
+# Define the categorical variables as well as hourpay
+special.dat<- gather(Hourly_Pay_NoRich[,c(2,5,6,8)],key="variable", value="value", -hourpay)  
+  #plots the boxplots using "free_x"
+p1<-ggplot(special.dat, aes(x=factor(value), y = log(hourpay), fill=factor(value))) +geom_boxplot() +facet_wrap(~ variable, scales = "free_x")
+#for book
+p1<-p1+theme_bw()+theme(legend.position = "none")+scale_fill_grey()
+p1
+```
+We g
+et a warning here, ignore it. It has to do with the fact that the x's are of different types.
+
+
+:::: {.whitebox data-latex=""}
+<ul>
+  <li>Q: Do you notice any patterns in the plots? Discuss.</li>
+  <li>Q: Based on the plots, which predictors do you think have the strongest marginal association with log(hourpay)?</li>
+</ul>
+::::
+
+The regression with all the predictors is:
+
+```{r echo=TRUE}
+all.lm<-lm(hourpay~.,data=Hourly_Pay) 
+#shortcut if you want to use all the predictors in the dataset
+all.lm<-lm(hourpay~age+TotalHoursWorked+AgeYoungDep+gender 
+           +OwnHouse+HighestQual+Ethnicity,data=Hourly_Pay_NoRich)
+display(all.lm)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Interpret the coefficients. Are there any unexpected values (by which I mean are there any signs that are unexpected or predictors you thought would have significant coefficients that do not?  
+::::
+
+## Standardising
+
+Let's standardise the continuous predictors to get a better idea of their relative importance. First as we need to perform the same task on 3 predictors let's write a function to do it:
+```{r}
+standardise.fn<-function(v){(v-mean(v))/(sd(v))}
+```
+
+Now let's apply our function.
+
+```{r echo=TRUE, results='hide'}
+std.age<-standardise.fn(Hourly_Pay_NoRich$age)
+std.THW<-standardise.fn(Hourly_Pay_NoRich$TotalHoursWorked)
+std.AYD<-standardise.fn(Hourly_Pay_NoRich$AgeYoungDep)
+```
+And run the regression
+```{r  echo=TRUE}
+std.all.lm<-lm(hourpay~std.age+std.THW+std.AYD+gender
+               +OwnHouse+HighestQual+Ethnicity,data=Hourly_Pay_NoRich)
+display(std.all.lm)
+```
+
+
+:::: {.whitebox data-latex=""}
+<ul>
+  <li>Q: Which of the continuous predictors appears to be most important and why?</li>
+  <li>Q:Would you remove any predictors? How can you find out if any of the categorical predictors should be removed?</li>
+</ul>
+::::
+
+
+```{r }
+Anova(all.lm)
+```
+
+### Residual plots
+
+Let's look at the residual plots:
+
+```{r fig.asp=0.4,fig.width=10,fig.align="center"}
+par(mfrow=c(1,3))
+plot(all.lm,which=c(1,2),cex=0.7,pch=".")
+hist(all.lm$residuals,main="Histogram of standardised residuals", xlab="Std. residuals")
+```
+There is definitely a "funnel" shape in the residual vs fitted plot as well as evidence of skewed residuals. 
+
+## Log transform
+
+Let's try a log transform on the outcome hourpay:
+
+```{r fig.asp=0.4,fig.width=10,fig.align="center"}
+log.lm<-lm(log(hourpay)~.,data=Hourly_Pay_NoRich)
+par(mfrow=c(1,3))
+plot(log.lm,which=c(1,2),cex=0.7,pch=".")
+hist(log.lm$residuals,main="Histogram of standardised residuals", xlab="Std. residuals")
+
+```
+Let's look at ``display()``:
+```{r}
+display(log.lm)
+```
+Based on the output of ``display()`` and the residual plots, let's compare the two models.
+
+### Diagnostics
+
+* **R$^2$** is 0.34 in log model vs 0.27 in the raw ``hourpay`` model. 
+* **Residual sd**: both are small relative to the size of the range.
+      * for the log model: 0.46. This needs to be compared with the range of log(``hourpay``)  which is -0.76 to 4.61 with a width of 5.37
+      * for the raw model: 7.44. This needs to be compared range of ``hourpay`` is 0.47 to 100.00
+* **Significance of coefficients**: In the log model, ethnicity is more significant, with all the coefficients associated with it being significant or borderline non-significant at the 5\% level.
+* **The Adjusted R-squared** (from ``summary()``) shows that the log model is a tiny bit better
+      * for the log model: 0.34 which is almost identical to the R$^2$ (so no hint of multicollinearity)
+      * for the original model: 0.27 which is almost identical to the R$^2$ 
+* **F-statistic p-value** (from ``summary()``) is very low for both models.
+      * for the log model:   p-value: < 2.2e-16
+      * for the original model:  p-value: < 2.2e-16
+
+We conclude that the fit of the log transformed model is *slightly* better than that of the original model. We would prefer the log transformed model, however we *need to acknowledge* that it isn't a very good model (low $R^2$).
+
+### Residual Plots
+
+* The fitted vs residual plot: The plot in the original model exhibits a clear funnel shape. The fitted vs residual plot in the logged model looks far more like random scatter. Independence of the error terms holds
+* The Q-Q plot in the original model exhibits strong skew (it is bow shaped) with a lot of deviation, however, the Q-Q plot in the logged model exhibits *kurtosis* (it is s-shaped). However this is less extreme than the skewness of the original model. Normality holds approximately
+* The histograms tell similar stories.
+
+### Conclusions
+
+Without using more complex models we cannot do better (and even with more complex models we may fail to do better). This means that we can interpret the outcomes and draw conclusions about the relationships between pay and the predictors using the model, but that we *need to say that they are based on a model that is not entirely satisfactory*. 
+
+:::: {.whitebox data-latex=""}
+Q: Interpret the coefficients of *gender*, *TotalHoursWorked* and *EthnicityChinese* in the log model.
+::::
+
+## Quadratic transform 
+
+Let's try a quadratic transform of _age_ to account for the curvature.
+
+```{r }
+age2<-Hourly_Pay_NoRich$age*Hourly_Pay_NoRich$age
+quad.age.lm<-lm(log(hourpay)~age+age2+TotalHoursWorked+AgeYoungDep+gender 
+           +OwnHouse+HighestQual+Ethnicity,data=Hourly_Pay_NoRich)
+display(quad.age.lm)
+```
+What does it look like?
+
+```{r fig.asp=0.5,fig.width=5,fig.align="center"}
+#for geom_line to put the quadratic line
+pred.for.plot<-fitted(quad.age.lm)
+#plot of raw data
+p1<-ggplot(data=Hourly_Pay_NoRich, aes(x=age, y=log(hourpay)))
+#using geom_line to fit a line through the fitted points (i.e. the expected line)
+p1<-p1+geom_smooth(method="lm", formula=y~poly(x,2), size = 1)
+#not essential, for the book
+p1<-p1+theme_bw()+ scale_colour_grey()+geom_point(color="grey", size=0.5)
+p1
+```
+What about the corresponding residual plots?
+```{r fig.asp=0.4,fig.width=10,fig.align="center"}
+#Residual plots easier with plot()
+par(mfrow=c(1,3))
+plot(quad.age.lm,which=c(1,2),cex=0.7,pch=".")
+hist(quad.age.lm$residuals,main="Histogram of standardised residuals", xlab="Std. residuals")
+```
+
+:::: {.whitebox data-latex=""}
+Q: Compare the logged model with the logged model and quadratic age. Which do you prefer? Bear in mind that adding a quadratic term can considerably complicate the interpretation.
+::::
+
+## Log transform on the predictor
+ 
+Let's try to log transform age. This might deal with the curvature of the plot.
+ 
+```{r fig.asp=1,fig.width=5,fig.align="center"}
+log.age.lm<-lm(log(hourpay)~log(age)+TotalHoursWorked+AgeYoungDep+gender 
+           +OwnHouse+HighestQual+Ethnicity,data=Hourly_Pay_NoRich)
+```
+
+```{r results='hide'}
+display(log.age.lm)
+```
+
+Produce residual plots and a scatterplot for this model.
+
+## Recoding categorical variables
+
+Sometimes we want to recode categorical variables so they have fewer levels. This is especially useful if you have a lot of categorical variables with many levels. This makes interpretation easier and often solves the problem of one significant level and many non-significant levels. 
+
+Consider HighestQual:
+```{r}
+with(Hourly_Pay_NoRich, levels(HighestQual))
+```
+
+We may be interested in distinguishing between those with a Degree, and A-level and everyone else. We use the ``Recode`` function from the ``car`` library
+
+```{r results='hide'}
+new.HQ<-with(Hourly_Pay_NoRich,Recode(HighestQual,"c('GCSE','None','Other')='Other'"))
+head(Hourly_Pay_NoRich$HighestQual)
+head(new.HQ)
+new.HQ<-relevel(new.HQ,ref="DegreeHE")
+```
+
+Now what happens when we re-run the regression?
+
+```{r}
+recode.lm<-lm(log(hourpay)~age+TotalHoursWorked+AgeYoungDep+gender 
+           +OwnHouse+new.HQ+Ethnicity,data=Hourly_Pay_NoRich)
+display(recode.lm)
+```
+
+
+## ``R`` tips: shortcuts and changing the dataframe
+
+If you have a lot of variables and want to drop one you can use the following:
+```{r results='hide'}
+display(lm(log(hourpay)~.,data=Hourly_Pay_NoRich))
+display(lm(log(hourpay)~.-Ethnicity,data=Hourly_Pay_NoRich))
+```
+If you want to be able to use this with transformed (e.g. standardised variables) then
+
+```{r}
+new.HPW<-Hourly_Pay_NoRich
+new.HPW$age<-std.age
+new.HPW$TotalHoursWorked<-std.THW
+new.HPW$AgeYoungDep<-std.AYD
+new.HPW$HighestQual<-new.HQ
+```
+
+We can then re-run the regression:
+
+```{r}
+new.lm<-lm(log(hourpay)~.-Ethnicity,data=new.HPW)
+display(new.lm)
+```
+
+### Other transforms
+
+Other transforms are the inverse, square root or the Box-Cox transform. They all make interpretation much harder but should be considered in situations where prediction is more important and small changes to prediction can result in large gains.
+
+**You could try the Omitted variable exercise at the back of the book now**

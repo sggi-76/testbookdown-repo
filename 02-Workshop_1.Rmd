@@ -1,0 +1,347 @@
+# Workshop 1: Introduction to ``R`` and ``RStudio``
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Learn basics of ``R`` coding, logical operators as well as vectors and arrays</li>
+  <li>Familiarise yourself with ``RStudio`` </li>
+</ul>
+::::
+
+**LSE PC alert**
+
+The software and PCs in the computer rooms are relatively new and should work well. However please bear in mind that sometimes there are difficulties with the network and/or slightly different PC versions. In this case, please let me know asap although there is typically not a lot I can do immediately.  
+
+If you have a laptop that you can easily carry around, I would recommend you use it. 
+
+## Why should I learn to code?
+
+Good statisticians learn to program because:
+
+* Independence: Otherwise, you rely on someone else having given you exactly the right tool (although we use many inbuilt _functions_ or those developed by other programmers)
+* Honesty: Otherwise, you end up distorting your problem to match the tools you have
+* Clarity: Making your method is something a machine can do disciplines your thinking and means others can see what you're doing and reproduce it.
+
+## How?
+
+We'll be learning how to do some programming and using built-in ``R`` functions.
+
+* No programming knowledge presumed
+* I expect you to know your 1st year stats (although we've been reviewing this).
+* I drew heavily on a course by Cosma Shalizi and on Moodle I've put a link to his lectures on ``R`` if you want to know more.
+* We will not necessarily cover all the material in this section but it is there if you want to use it for reference.
+
+## What now?
+
+Today I will briefly go over the ``RStudio`` console.
+
+* You will get a chance to practice more during the quiz
+* If we don't get through everything I expect you to finish in your own time
+* _It is going to be difficult_ at the beginning. That is normal. 
+* You will make mistakes. It will be frustrating. 
+* It is important for you to read the _errors_ you get -- they are not always illuminating but you will come to understand them. There is a reference sheet to common errors and their meaning on Moodle.
+
+## ``RStudio``
+
+Go to the application $\rightarrow$ Statistics $\rightarrow$ ``R`` $\rightarrow$``RStudio`` and open the latest version with the "full libraries" option. Then go to  File and New File $\rightarrow$ R script. ``RStudio`` allows you to see all parts you use for ``R``:
+
+* _The script_: where you write the ``R`` commands that work. You save this so you have a list of working instructions to refer back to -- like a recipe or lego instructions
+* _The console_: Basic interaction with ``R`` is by typing in the console, a.k.a. terminal or command-line. You type in commands, ``R`` runs them and sometimes gives back answers (or errors) 
+* _The Environment/History tabs_ : if you define variables or upload data it shows in the Environment tab. History tab is a list of the commands so far and is useful if you want to figure out which command you used worked
+* _The Files/Plots etc tabs_ : Files in the local directory, Plots you might be creating, Packages that are installed, Help and viewer. Mostly you will focus on the Files and Plots.
+
+## The working directory
+
+The directory you open ``RStudio`` from is the working directory. If you want to know where it is and what's in it. Go to the console.
+
+What directory am I in?
+
+```{r}
+getwd()
+```
+
+What's in it?
+
+```{r echo=TRUE, results='hide'}
+dir()
+```
+
+## At the beginning of every session:
+
+* Open Zoom if you are using it.
+* Create a folder/directory named Week x in your H drive. E.g. today you can create a folder called "Week 1"
+* When we use data save all the data files from Moodle into that Week's folder
+* Save your ``R`` scripts and plots into this file
+* To get ``RStudio`` to work in this directory you use 
+
+``setwd(``$\color{white}{\text{SOME SPACE HERE FOR STUFF}}$``)``
+* Or in ``RStudio`` go to the ``Files`` tab in the bottom right hand corner and navigate to the directory you wand and then under ``More`` choose ``Set As Working Directory``.
+
+
+## Data types
+
+* _Booleans_: Direct binary values: TRUE or FALSE (0,1) in ``R``
+* _Integers_: whole numbers:  positive, negative or zero 
+* _Characters_: single letters or symbols, strings = sequences of characters
+* _Floating point numbers_: a fraction
+* _Missing_ or _ill-defined values_: ``NA``, ``NaN``, ``Inf``.
+* _numeric_ includes both integers and floating point numbers
+
+\newpage
+
+## Operators
+
+Type the examples with me:
+
+* _Binary_: usual arithmetic operators, plus ones for modulo and integer division; take two numbers and give another number
+
+
+    | Operator 	| Example 	| What it does 	|
+|:--------:	|:-------:	|-------------------	|
+| + 	| 9+4 	| addition 	|
+| - 	| 9-4 	| subtraction 	|
+| * 	| 9*4 	| multiplication 	|
+| / 	| 9/4 	| division 	|
+| %/% 	| 9%/%4 	| integer division  	|
+| %% 	| 9%%4 	| modulo 	|
+
+* _Logical operators_ : Comparisons which are also binary operators
+
+    | Operator 	| Example 	| What it does 	|
+|:--------:	|:-------:	|------------------	|
+| \> 	| 9>4 	| greater than 	|
+| < 	| 9<4 	| less than 	|
+| >= 	| 9>=4 	| greater or equal 	|
+| <= 	| 9<=4 	| smaller or equal 	|
+| == 	| 9==4 	|  equal to 	|
+| != 	| 9!=4 	| not equal to 	|
+
+* _Boolean operators_ : "and" and "or"
+
+
+| Operator 	| Example 	| What it does 	|
+|:--------:	|:-------------:	|----------------------------	|
+| & 	| (9>4) & (5<6) 	| are left _and_ right true? 	|
+| \| 	| (9>4) \| (5>6) 	| are left _or_ right true? 	|
+
+
+* _Unary_: for arithmetic negation, !  ``x!=y`` would give true if x is not equal to y and false otherwise.
+
+
+## Checking/Imposing types
+
+This can be useful when we don't know what the type of an object is or want to impose a type on an object. 
+
+- For asking use ``is.`` 
+- For imposing use ``as.``
+
+| Example | What it does | Example | What it does (if possible) |
+|------------------------|------------------------------------|-----------------------|-----------------------------------|
+| ``typeof(9.6)`` | what type of variable? |  |  |
+| ``is.numeric(9)`` | is the variable a number? | ``as.numeric(TRUE)`` | makes the value numeric |
+| ``is.integer(6.7)`` | is the variable an integer | ``as.integer(6.7)`` | turns value into its integer part |
+| ``is.character("a")`` | is the variable a character/string | ``as.character(6/5)`` | makes a string of the number |
+| ``is.na(1)`` | is the variable an NA |  |  |
+
+See what errors you get when you do things that are not possible.
+
+```{r}
+#as.integer("a")
+```
+
+
+## Data objects
+
+Data objects are the main thing we create, use and manipulate in ``R``. We typically give data objects names. These are then called _variables_. We create them by using the assignment operator ``<-`` (or ``=``). We do this because
+
+* It makes it easier and faster to program
+* Easier to debug
+* Easier to build functions
+* Easier to reuse and understand
+
+```{r}
+new.var<-1
+new.var
+exp(1)
+```
+
+It is also used to change the value of an existing variable
+```{r}
+new.var<-5
+new.var^2
+```
+
+## The Workspace/Environment
+
+Look at the Environment tab on the top right of ``RStudio``. Can you see new.var? 
+```{r, echo=FALSE}
+ls()
+```
+
+Should also just list ``new.var``. If you change the view from list to grid you'll also see that you are given the type of the variable - ``numeric()``.
+
+## Vectors
+
+We can't do much statistics with a single value. Let's group some values together. The simplest _data structure_ is the vector:
+
+```{r}
+first.vector<-c(1,7,11,43)
+first.vector
+is.vector(first.vector)
+```
+
+The ``c()`` function creates a vector with the values in the order specified. Some things you can do to vectors
+
+```{r}
+length(first.vector)
+first.vector+1
+first.vector*2
+first.vector^2
+```
+
+More things
+
+```{r}
+second.vector<-c(1,2,1,2)
+first.vector+second.vector
+first.vector^second.vector
+first.vector>second.vector
+```
+
+To compare vectors use ``identical`` or ``all.equal``
+```{r}
+identical(first.vector,c(1,7,11,43))
+identical(c(0.3-0.1,0),c(0.4-0.2,0))
+all.equal(c(0.3-0.1,0),c(0.4-0.2,0))
+```
+
+## Extracting parts of vectors
+
+If you want the 2nd value of your vector
+
+```{r}
+first.vector[2]
+```
+
+If you want the 2nd and 4th or the 2nd _to_ the 4th
+
+```{r}
+first.vector[c(2,4)]
+first.vector[2:4]
+```
+If you want the vector _without_ the 1st and 3rd
+
+```{r}
+first.vector[c(-1,-3)]
+```
+
+Say you want the values that are larger than 8
+
+```{r}
+first.vector[first.vector>8]
+```
+Say you want to know the position in the vector (the _index_) of the values that are larger than 8
+
+```{r}
+which(first.vector>8)
+first.vector[which(first.vector>8)]
+```
+
+## Arrays
+
+Let's make an array with 2 rows by 2 columns using our ``first.vector``
+
+```{r}
+first.array<-array(first.vector,dim=c(2,2))
+first.array
+```
+Can have any size array. 
+
+```{r}
+second.array<-array(first.vector,dim=c(4,2))
+second.array
+```
+ 
+How big is the array?
+ 
+```{r}
+dim(first.array)
+```
+
+Like with vectors we might want to know about individual elements of the array. See what the commands below do.
+
+```{r}
+first.array[2,2]
+first.array[2,]
+first.array[2,,drop=FALSE]
+first.array[,2]
+```
+
+Some commands will preserve the array structure
+
+```{r}
+first.array>8
+```
+
+**Vector Recycling**
+
+If a row is longer than the vector that has been assigned to it, ``R`` will recycle the vector
+
+```{r}
+another.array<-array(dim=c(4,2)) #another array 
+another.array[,1]<-c(1,2)
+another.array[,2]<-c(3,4)
+another.array
+```
+
+
+## Functions
+
+A _function_ in ``R`` is a command that takes _arguments_ and returns an _output_. A function works as follows: you type
+
+``name.of.function(argument)``
+
+and press enter then you will get the output of the function. 
+
+**Example**
+
+```{r}
+which(first.array>8)
+```
+
+Some functions will return vectors when applied to arrays if you don't set additional options. If you use ``which()`` with ``arr.ind=TRUE`` then it gives you the locations of the TRUE.
+
+```{r}
+which(first.array>8,arr.ind=TRUE)
+```
+
+Compare this to the output of ``first.array>8``
+
+The homework this week is to work through some code that teaches you about loops and functions in ``R``
+
+## History
+
+Have a look at your History tab. It contains ALL the commands you've typed so far (including the wrong ones). If you want to save your commands then it is easy to just save the History. You can remove individual commands by highlighting and clicking on the page with the red cross at the top of the tab.
+
+## Packages
+
+Packages typically contain a number of (often related) functions to do things in ``R``. One of the great things about ``R`` is that you can write your own functions but also you can often find a function someone else has written to do almost anything you need to do. Because ``R`` is open source you can access the code of any function anyone has written and modify it if you want. There are hundreds of packages. Go to the ``R`` website to search for packages or search via the packages tab in ``RStudio``.
+
+When we first open ``RStudio`` it has only a few packages loaded. Look under the the ``Packages`` tab in the bottom right hand corner of ``RStudio`` to see what's packages are installed. You load a package by typing ``library(nameofpackage)`` or by ticking the box next to the name of the package you want in the packages tab. 
+
+An important point is that ``R`` on the LSE PCs has all the relevant packages installed when you log in as you because it has been set up specially. So you should be able to load the packages without having to install them. Don't try to install anything as this can sometimes lead to crashes. If you install ``R`` on your laptop you'll have to install everything yourself. Use the install button in the ``Packages`` tab. If you encounter problems with some of the packages let me know asap and I can come up with alternatives.
+
+## At the end of every Workshop
+
+* Save the ``R`` script in the working directory
+* Save any plots in the working directory (use the "Export" tab)
+* When you close ``RStudio`` it will prompt you asking if you want to save the ``.Data`` file. This is the "image" which contains all the variables, data and functions you have created during the session. It does _not_ contain the script i.e. the set of instructions you typed, only the stuff you created.
+* It is worth saving the image if
+    + You will continue to work on the same project later
+    + If the script takes a while to run and it is easier just to save the complex/large objects you have created
+    + If you have manipulated the data in complex ways (in this case also save the data in a new data file)
+    + If you intend to share your script with others it is important that it will run with an empty session -- passing them the image will help with that.
+

@@ -1,0 +1,209 @@
+# Lecture 2: Plots needed for Regression
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Become familiar with different types variables involved in regression</li>
+  <li>Reminder of boxplots and scatterplots</li>
+  <li>Introduction to Q-Q plots</li>  
+</ul>
+::::
+
+## The aims of regression
+
+The principal aims of regression are to use observed data and maths to create models to:
+
+1. Better *understand* and *explain* the relationships between different factors or variables
+2. To *predict* the values of a variable of interest based on information currently available
+3. A combination of the above
+
+In order to do this we need to be able to classify data into *roles* and *types*.
+
+## Roles and types of variables
+
+In regression we have two main roles for the variables:
+
+* The _outcome_ variable 
+    * what we are interested in understanding or predicting. Also called dependent or response variable. We only deal with one outcome in this course, however the theory has been extended to multiple outcomes.
+* The _predictor_ variable(s) 
+    * what we use to predict or explain the outcome variable. Also called explanatory, independent variable or factor
+
+### _Example 1_:
+
+* _We are given data on 4 different variables for a random sample of 100 staff at the LSE: height (in cm), age (in years), annual income (in 1000's \£) and gender (male/female/other)_
+
+:::: {.whitebox data-latex=""}
+Q:What is the aim, prediction or explanation? Which variable is the outcome?
+::::
+
+## Type of variable
+
+The type of the variable can also be different.
+
+* _Binary_ : these have two values only -- 0,1 ; on,off ; Yes,No
+* _Categorical_ : these have a finite number of values (levels) such that the difference between any two values isn't the same for any pair of values. They are typically qualitative -- country, political party, degree. Some have a natural ordering (e.g. degree levels) and could be considered as _Ordinal_ but we do not make this difference in the course.
+* _Numeric_ : these are variables which can take any numerical value. Some common variables are rounded to an integer (e.g. age) or cannot really take on any possible value (\% in an exam). Some are discrete integer values (e.g. age in years) others are continuous with fractions or decimal places (e.g. temperature to two decimal places). The key for numeric variables is that the difference between two consecutive values of a variable is the same regardless of which two consecutive values we take.
+
+:::: {.whitebox data-latex=""}
+Q:For _Example 1_ identify the type of each variable. Justify your answers. 
+::::
+
+## How are the variables related?
+
+It is very important when encountering a new data set to ask yourself what relationships you _expect to see_ between the variables; in particular the outcome and the predictors. You need to think both in terms of sign (+/-) and in terms of strength (is the outcome strongly related to the predictor or is it a weak relationship).
+
+Sometimes you will have no idea! In this case you will hopefully have an expert in the subject matter working with you giving you hints. At other times you will find the sign/importance of a variable diminish when you introduce more variables into a regression. For example, having a bike/car accident may be strongly associated with having severe injuries for the cyclist. If however you include wearing a helmet then this association changes because conditional on wearing a helmet the injuries are less severe.
+
+Thinking about the relationships between variables *before* running the analysis is important for a number of reasons:
+
+* Helps you spot quickly if you need to take a closer look at unexpected results.
+* Gives you a deeper understanding of underlying relationships because you have to find ways to explain counter-intuitive results.
+* It makes you think more carefully about what the variables are -- the unit, the range etc. E.g. if you have data on height and age you might assume that age and height are correlated until you see that the data are for adults only.
+* Is helpful when assessing the modelling assumptions (more of that later).
+
+:::: {.whitebox data-latex=""}
+Q:For _Example 1_ what do you think the relationships between the outcome and the predictors are? Are any of the predictors likely to be related? Justify your answer.
+::::
+
+## Exercise 
+
+Identify the outcome and the predictors in the following 2 examples. Try and guess at whether the aim of the research is to explain or predict.  Do you anticipate that any of the predictors are associated with one another?
+
+_Example 2_:
+
+* We are given data on the height (in cms to the shoulder), the breed (Ryeland, Romney, Masham) and weight (in kgs) of wool obtained after shearing of 30 sheep belonging to Farmer Josephine. She has a total of 213 sheep.
+
+:::: {.whitebox data-latex=""}
+Q: What is the aim, prediction or explanation? Which variable is the outcome?
+
+Q: Identify the type of each variable. 
+
+Q: What do you think the relationships between the outcome and the predictors are? Are any of the predictors likely to be related? Justify your answer.
+::::
+
+_Example 3_:
+
+* The data are for a sample of 1000 Londoners who were asked whether they voted (yes/no) in the last general elections, their annual income (in bands 0-20k,20k-30k,30k-40k,40k-50k,50k-60k,60k+), gender (male/female/other), the highest level of education (none/secondary school/university/other) and where in London they live (first two letters of postcode)
+
+:::: {.whitebox data-latex=""}
+Q: What is the aim, prediction or explanation? Which variable is the outcome?
+
+Q: Identify the type of each variable. 
+
+Q: What do you think the relationships between the outcome and the predictors are? Are any of the predictors likely to be related? Justify your answer.
+::::
+
+## Plots
+
+There are two types of plots that you'll use regularly in exploratory analysis: _scatterplots_ and _boxplots_. We'll quickly review what they show. As we will use Q-Q plots in residual analysis later on we'll introduce them here.
+
+## Scatterplots
+
+Scatterplots should be used to plot _continuous_ predictors against _continuous_ outcomes. Examples include:
+
+* age (years) vs income (in £)
+* skill score (special unit) vs exam grade (in %)
+* height (cm) vs income (in £)
+* shoulder height (cm) vs weight of wool (in kg) in sheep (see below)
+
+The predictor is in the x-axis and the outcome is in the y-axis.
+$\\$
+
+```{r echo=FALSE, fig.width=8}
+plot.data<-read.csv("../Data/heightweight15.csv")
+plot.data<-rbind(plot.data, read.csv("../Data/heightweight10.csv"))
+plot.data<-rbind(plot.data, read.csv("../Data/heightweight1.csv"))
+wool<-plot.data$Weight/15
+with(plot.data, plot(Height,wool, main="Sheep shoulder height vs sheared wool weight", 
+                     xlab="Shoulder height (kg)",ylab="Weight of sheared wool (kg)"))
+```
+
+Scatterplots can be used to visually assess 
+
+* whether a linear relationship between predictors and outcome is plausible,
+* whether there is any non-linearity (i.e. curvature) in the relationship and
+* to get feeling of the strength of the association.
+
+
+:::: {.whitebox data-latex=""}
+For the plot above:
+
+Q: Is linearity plausible?
+
+Q: Is non-linearity likely?
+
+Q: Is there a strong (linear) relationship?
+::::
+
+## Boxplots
+
+Boxplots are used to show the relationship between a _categorical_ predictor and a _continuous_ outcome.
+
+Examples include:
+
+* Gender (male, female) vs income (in £)
+* Political affiliation (Tory, Labour, Lib Dem, Other) vs age (in years)
+* Time spent on social media (in hour bands per week) vs exam grade (in %)
+
+
+```{r echo=FALSE, fig.width=8}
+box.data<-read.csv("../Data/Stats_study_habits.csv")
+with(box.data, boxplot(Grade~Social.Net, axes=FALSE))
+box( bty = "o")
+axis(1, at=c(1,2,3), labels = c("4<","4-6",">6"))
+axis(2, at=seq(min(box.data$Grade),max(box.data$Grade),by=10))
+title("Time spent on social media vs exam grade",xlab="Time on social media (hours pw)",
+      ylab="Grade (%)")
+```
+
+Boxplots can be used to see if there is an association between the outcome and the categorical predictor. We determine this by looking at how different the medians/boxes are from each other.
+
+:::: {.whitebox data-latex=""}
+Q: Do you think there is an association between the number of hours spent on social media and exam grades? 
+::::
+
+## Q-Q plots
+
+Q-Q plots are quantile-quantile plots and are closely related to P-P plots (probability plots). We use them in residual analysis in Regression. A Q-Q plot has the quantiles of the standard normal distribution on the x-axis and plots them against the _observed quantiles_ (i.e. the quantiles corresponding to the observed histogram) of the data (in our usage the standardised residuals). 
+
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**What is a quantile?** 
+:::
+
+They are points that divide the sample into sections that contain equal probabilities. The median is the central quantile so that half the points in the sample are above it and half the points are below it. The quartiles -- 25th, 50th (median) and 75th-- divide the sample into 4 sections so that a quarter of the points are below the 25th, half are below the 50th and 3/4 are below the 75th. Wikipedia have a good example on how to determine quartiles (or indeed other quantiles) in their entry on quantiles. For the Q-Q plot n-tiles are created where n is the sample size
+::::
+
+```{r, echo=FALSE, fig.height=7}
+r.wool<-rstandard(lm(Weight~Height,data=plot.data))
+par(mfrow=c(2,2))
+std.norm<-rnorm(10000,0,1)
+hist(std.norm,main="",xlab="Standardised Residuals",freq = FALSE)
+lines(density(std.norm))
+x<-seq(1,100)
+y<-seq(1,100)+std.norm[1:100]
+plot(lm(y~x),which=c(2),xlab="Standard normal quantiles")
+hist(r.wool, main="",xlab="Standardised Residuals",freq = FALSE)
+lines(density(std.norm))
+plot(lm(Weight~Height,data=plot.data),which = c(2),xlab="Standard normal quantiles")
+
+```
+
+* The top LHS is the histogram of points drawn from a standard normal distribution (N(0,1)) with the standard normal density overlayed. We can see that the histogram is perfectly represented by the density plot.
+* The top RHS plot is the corresponding Q-Q plot. It plots the standard normal quantiles against the quantiles of the points from the standard normal (the same ones as in the LHS plot). The dotted line is the x=y diagonal. We can see that the standard normal quantiles and those associated with the sample from the normal are mostly on the x=y diagonal (although sometimes there are some outliers)
+* The Q-Q plot assesses how close to normal the standardised residuals are. 
+* The bottom plots show the standardised residuals from one of our regressions later in the course (I will explain). We can see from both the histogram and the Q-Q plot that these values are not very close to the normal distribution. 
+
+As we can see from the plots the histogram has more observations in the low quantiles which corresponds to the larger than standard normal quantile values in the y-axis of the Q-Q plot. 
+
+:::: {.whitebox data-latex=""}
+Q: Can you spot any more features in the two top plots that correspond to one another?
+::::
+
+
+
+

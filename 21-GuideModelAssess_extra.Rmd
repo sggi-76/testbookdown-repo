@@ -1,0 +1,94 @@
+## Appendix C: Guide to linear model assessment 
+
+### Overview
+
+* This is a brief guide to what things to do/consider when assessing model fit. 
+* Let's use the Study Habits data without the outliers.
+
+```{r echo=TRUE, results='hide'}
+Study_Habits<-read.csv("../Data/Stats_study_habits_noout.csv",header=T)
+head(Study_Habits,2)
+summary(Study_Habits)
+```
+
+### Comments on the data
+
+* Note that many of the binary/categorical predictors are coded as numbers. 
+* This means that you need to \texttt{factor} them.  
+* \texttt{Cohort} is either 2012 or 2013 and is an indicator of whether the student that responded to the questionnaire on study skills took the course in 2012 or 2013. 
+* \texttt{Gender} is "M" and "F". 
+* A.level is the grade in Maths/Stats on a scale from 0 to 6 but in practice there are only values from 4-7 so you can consider it a continuous or a categorical predictor
+
+### How do I get started?
+
+* Look at the summary and the data description and think about what relationships you expect to see
+* Plot the outcome againts the predictors
+* Scatter plots for continuous and boxplots for categorical predictors
+* If you have any missing or NA (not in these data) decide how to deal with them before the analysis
+
+### The first regression
+
+You can either
+
+1. put all of the predictors into the regression
+2. put only the predictors you think (because of the plots etc) are important. If you do this, you need to explain why you chose the predictors you did.
+3. run all the simple linear regressions and start off by adding the two predictors that are the most significant
+
+```{r}
+grade.all.lm<-lm(Grade~as.factor(Cohort)+as.factor(Interesting)+as.factor(Enjoy)
+                 +as.factor(Social.Net)+Gender+A.Level+Study.Skills,data=Study_Habits)
+display(grade.all.lm)
+```
+
+### What to do with the output of ``display()`` 
+
+For each predictor in the model:
+
+1. Interpret the coefficients associated with it
+2. Check the signs of the coefficients make sense
+3. Determine whether the predictor is significant at the 5% level
+
+### Is the model a good fit? 
+
+Consider the following:
+
+1. R$^2$
+2. The residual sd (check the absolute range of ``Grade`` using ``abs(range(Study_Habits$Grade))``)
+3. The significance of the coefficients. If there are too many non-significant coefficients it makes sense to get rid of some especially if the sign does not makes sense. Which 2 would you get rid of and why?
+
+(If you want to see the Adjusted $R^2$ or the F-statistic, look at ``summary()`` )
+
+### Residual plots
+
+**It's not all about the diagnostics! You need to look at residual plots too!**
+
+The same residual plots are relevant for multiple linear regression as for simple linear regression. 
+
+```{r fig.asp=0.8, out.width='.6\\linewidth', fig.align='center'}
+par(mfrow=c(2,2))
+plot(grade.all.lm,which=c(1,2))
+hist(grade.all.lm$residuals,main="Histogram of residuals",font.main=1,xlab="Residuals")
+```
+
+Based on the plots can we conclude that the residual assumptions of constant variance and normality of residuals hold? Look for the following:
+
+1. Does the fitted vs residual plot look like random scatter (no trends, curvature, funnel shape)?
+2. Do the points in the Q-Q plot sit approximately on the diagonal (no bow/s shapes)
+3. Does the histogram of the standardised residuals look approximately normal (no bimodality, skewness, kurtosis)?
+
+### Coefficients of the predictors
+
+* Remove the predictor with the least significant coefficient (the largest p-value)
+* If you chose to start with a regression with all the predictors you should go through the process above until you have no more non-significant predictors. This is called backward elimination
+* If you chose to start with a regression with some predictors and  
+    1) none of the coefficients are non-significant: Add another predictor. This should be based one that is the most significant one in the simple linear regressions
+    2) some coefficients are non-significant: Remove the least significant and repeat the process. If when you have no non-significant predictors there are still some predictors you haven't used, add them to see whether they might be signficant
+* If you chose to start with only the two most significant predictors, start adding the next most significant based on the simple linear regressions until any predictor you add is non-significant.
+
+### Interactions
+
+* You could try adding interactions if  
+    1. You have a reason to believe that two predictors interact - give your reason
+    2. The main effects are highly significant
+* I would not recommend continuous/continuous interactions -- they are hard to interpret and introduce collinearity
+* Reduce the number of levels in a categorical predictor if you intend to use interactions

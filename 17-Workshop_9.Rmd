@@ -1,0 +1,260 @@
+# Workshop 10: Logistic regression: Diagnostics etc.
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Adding multiple predictors to a logistic regression in *R*</li>
+  <li>Prediction in logistic regression</li>
+  <li>Coding Average Predictive Comparisons</li>
+</ul>
+::::
+
+## Multiple predictors
+
+Today we'll be using the data set "dmd.csv" and run a regression with multiple predictors. There are 209 observations corresponding to blood samples collected in a project to develop a screening program for female relatives of boys with Duchenne Muscular Dystrophy (DMD) a congenital disease. There are 4 questions we need to answer:
+
+1. The program's main goal was to inform a woman of her chances of being a carrier based on serum markers (chemicals in the blood). 
+2. Also of interest was whether age should be taken into account. 
+
+Enzyme levels were measured in known carriers (75 samples) and in a group of non-carriers (134 samples). The first two serum markers, creatine kinase and hemopexin (``ck``,``h``), are inexpensive to measure, while the last, pyruvate kinase (``pk``) is more expensive to measure. 
+
+3. We also want to know whether ``ck`` and ``h`` are sufficient to predict carrier status or whether ``pk`` is necessary. In routine blood tests, it is not possible to measure all three, if we measure ``ck`` and ``h`` we cannot measure ``pk``. However all three were measured for this study.
+
+The water supply in the lab in which the blood samples were being analysed changed during the study. ``afterchg=1`` indicates which samples were taken after the change and  ``afterchg=0`` which were taken prior to the change.
+
+4. Finally we want to know whether the change in water had an effect on the outcomes
+
+The data look like this:
+
+```{r}
+dmd.dat<-read.csv("../Data/dmd2.csv",header = T)
+head(dmd.dat)
+```
+
+Before we do any regressions let's centre the continuous predictors. This makes sense because the measurements are not taken on new-borns and 0 values are not possible for the serum markers as they exist in some concentration in every person. 
+
+```{r}
+#write function
+cent.pred<-function(v){
+  cent.v<-v-mean(v)
+  cent.v
+}  
+#center
+cent.ck<-cent.pred(dmd.dat$ck)
+cent.h<-cent.pred(dmd.dat$h)
+cent.age<-cent.pred(dmd.dat$age)
+cent.pk<-cent.pred(dmd.dat$pk)
+```
+
+Let's start by using two regressions, one with ``cent.pk``,
+
+```{r}
+dmd.pk.glm<-glm(carrier~cent.age+afterchg+cent.pk,data=dmd.dat,
+                family=binomial(link="logit"))
+display(dmd.pk.glm)
+```
+
+and another with ``cent.ck``, ``cent.h``.
+
+```{r}
+dmd.ckh.glm<-glm(carrier~cent.age+afterchg+cent.ck+cent.h,data=dmd.dat,
+                 family=binomial(link="logit"))
+display(dmd.ckh.glm)
+```
+
+``pk``, ``ck`` and ``h`` are all significant, indicating that the models _do_ help predict carrier status. We can confirm this using the diagnostics: For both models the difference between the null and residual deviances are above the critical value for the corresponding $\chi^2$ distribution. Specifically:
+
+1. For the regression with ``pk`` the difference between the residual and null deviance is 109.9. This needs to be compared to the $\chi^2$ distribution on 3 degrees of freedom. 
+```{r}
+qchisq(0.95,3)
+```
+109.9>7.81 so the model with ``pk``, ``age`` and ``afterchg`` is better than the null model. A similar argument leads us to compare 120.4 (difference between null and residual deviance in model with ``ck`` and ``h``) with:
+```{r}
+qchisq(0.95,4)
+```
+So the model with  ``ck``,  ``h``, ``age`` and ``afterchg`` is better than the null model.
+
+However in both cases ``afterchg`` appears to have little effect in terms of significance Furthermore, ``age`` is a significant predictor of being a carrier. This answers questions 1,2 and 4 above.
+
+Let's turn to question 3: "Are ``ck`` and ``h`` sufficient to predict carrier status, or is ``pk`` better?" In order to do this, let's compare the classification tables for both models. First let's write a function that produces classification tables.
+
+```{r tidy=TRUE}
+#function
+ct.op<-function(predicted,observed){ #arguments
+#create the data frame  
+df.op<-data.frame(predicted=predicted,observed=observed)
+#create a table 
+op.tab<-table(df.op)
+#use the prop.table function to obtain the proportions we need:
+#those who were correctly predicted as 0 
+#@position 1,1 in the table of proportions
+obs0.tab<-round(prop.table(op.tab,2)[1,1],2)
+#those who were correctly predicted as 1
+#@position 2,2 in the table of proportions
+obs1.tab<-round(prop.table(op.tab,2)[2,2],2)
+#and put them under the table 
+op.tab<-rbind(op.tab,c(obs0.tab,obs1.tab))
+#name the rows
+rownames(op.tab)<-c("pred=0","pred=1","%corr")
+#name the columns
+colnames(op.tab)<-c("obs=0","obs=1")
+#return the table
+op.tab
+}
+```
+
+How well does the model with ``pk`` predict?
+
+```{r}
+#we use as.numeric because the part inside the brackets returns TRUE/FALSE
+pred.pk<-as.numeric(dmd.pk.glm$fitted.values>0.5)
+#pass the fitted values and the observed values to ct.op
+ct.op(pred.pk,dmd.dat$carrier)
+```
+
+How about the model with ``ck`` and ``h``?
+
+```{r}
+pred.ckh<-as.numeric(dmd.ckh.glm$fitted.values>0.5)
+ct.op(pred.ckh,dmd.dat$carrier)
+```
+
+
+:::: {.whitebox data-latex=""}
+Q: Based on the output of *display()* and the tables of predicted vs observed would you recommend the test using *ck* and *h* or the test using *pk*? Explain your answer.
+::::
+
+## Predicting probabilities and risk ratios
+
+As mentioned before, the logistic function is non-linear which means that a change in one in the value of a predictor is not the same across the range of the predictor. Specifically, ``age`` going from 20-30 may not result in the same change in the probability of being a carrier as ``age`` going from 30-40.
+
+:::: {.whitebox data-latex=""}
+Q:Using plots, explain the statement above.
+::::
+
+One way to see this numerically is to look at _risk ratios_  or _relative risks_. We've done this by hand for a single predictor, but how can we get ``R`` to do it for us in the context of multiple predictors?
+
+Consider the model with ``ck``, ``h`` and ``age``:
+
+```{r}
+dmd.glm.apc<-glm(carrier~age+ck+h,data=dmd.dat,family=binomial)
+display(dmd.glm.apc)
+```
+
+What is the change in probabilities associated with a change in _age_ of 
+
+a) 20 to 25 and 
+b) 40 to 45 
+
+for a woman with mean ``ck`` (90.19) and mean ``h`` (86.37)? Ages over 45 are not of interest because the probability of women above 45 having children is very low.
+
+1. We create the data frame we want to use for prediction: Note that you could create this manually in excel and save it as a csv file and load it into ``R`` if you prefer.
+
+```{r}
+new.dmd.dat<-data.frame(age=c(20,25,40,45),ck=mean(dmd.dat$ck),h=mean(dmd.dat$h))
+new.dmd.dat
+
+```
+
+2. Next we use the predict function, this gives us the logits associated with the values above.
+
+```{r}
+pred.logit<-predict(dmd.glm.apc,new.dmd.dat)
+#pred.logit
+```
+ 3. To obtain probabilities, we can either use the formula or we can ask ``R`` to do it: (remember the ``invlogit`` function is in the ``arm`` package.)
+ 
+```{r}
+pred.probs<-invlogit(pred.logit)
+#pred.probs
+```
+ 
+To see these together a small data frame:
+
+```{r}
+logreg<-data.frame(logits=pred.logit,probs=pred.probs)
+cbind(new.dmd.dat,logreg)
+```
+
+ We see that the probabilities of being a carrier are very low for younger women and increase substantially for older women with mean values of ``ck`` and ``h``.
+ 
+ 4. Now calculate the risk ratios: 
+ 
+```{r}
+print("risk ratio age:20-25, mean ck and h")
+as.numeric(pred.probs[2]/pred.probs[1])
+print("risk ratio age:40-45, mean ck and h")
+as.numeric(pred.probs[4]/pred.probs[3])
+#as.numeric means we don't get the data frame formatting
+```
+
+We see that the probability of being a carrier increases by 80% when going from the age of 20 to 25 whereas is only increases by 22% when going from 40-45 years of age for women with average ``ck`` and average ``h`` levels. These figures look alarming without the probabilities themselves to relate to so display risk ratios alongside probabilities.
+ 
+:::: {.whitebox data-latex=""}
+Q: Why do is it a good idea to use the mean (or median) value for the predictors we are not interested in comparing?
+::::
+
+ Let's see how those values are affected if we look at women with high ``ck``: 73 is the 75th quantile.
+
+```{r}
+new.dmd.dat<-data.frame(age=c(20,25,40,45),ck=73,h=mean(dmd.dat$h))
+pred.logit<-predict(dmd.glm.apc,new.dmd.dat)
+pred.probs<-invlogit(pred.logit)
+logreg<-data.frame(logits=pred.logit,probs=pred.probs)
+cbind(new.dmd.dat,logreg)
+print("risk ratio age:20-25, ck=73 and  mean h")
+as.numeric(pred.probs[2]/pred.probs[1])
+print("risk ratio age:40-25, ck=73 and  mean h")
+as.numeric(pred.probs[4]/pred.probs[3])
+```
+
+For women with high``ck`` the situation appears to be only slightly worse in terms of risk ratios (85 and 29% for younger and older women respectively) but is actually slightly better in terms of the probabilities (13 and 71% probability of being a carrier at 25 and 45 years respectively). 
+
+## Coding APCs
+
+The APC is a generalisation of the approach above where we input predictor means for the predictors that are not the focus of our interest. One big difference is that we look at _differences_ between probabilities and _not ratios_.
+
+Let's apply this technique to the DMD data set. We should not use centered predictors for this. Also, remove ``afterchg`` as it is not significant.
+
+For age:
+```{r}
+dmd.glm.apc<-glm(carrier~age+ck+h,data=dmd.dat,family=binomial)
+
+b<-coef(dmd.glm.apc)
+hi<-45 #actual highest is 61 but women mostly have children before 45
+lo<-20
+delta.age<-with(dmd.dat,(invlogit(b[1]+b[2]*hi+b[3]*ck+b[4]*h) 
+                         -invlogit(b[1]+b[2]*lo+b[3]*ck+b[4]*h)))
+print(mean(delta.age))              
+```
+
+This means that the average predictive difference in probability of being a carrier associated with an increase over the observed range of years is 46% other things remaining equal. Remember that the range of age is from 20-61 but we only consider 20-45 as child bearing ages.
+
+For ``ck``:
+```{r}
+hi<-1000
+lo<-15
+delta.ck<-with(dmd.dat,(invlogit(b[1]+b[2]*age+b[3]*hi+b[4]*h)
+                        -invlogit(b[1]+b[2]*age+b[3]*lo+b[4]*h)))
+mean(delta.ck)              
+```
+
+For ``h``:
+
+```{r}
+hi<-118
+lo<-34
+delta.h<-with(dmd.dat,(invlogit(b[1]+b[2]*age+b[3]*ck+b[4]*hi)
+                       -invlogit(b[1]+b[2]*age+b[3]*ck+b[4]*lo)))
+print(mean(delta.h))              
+```
+
+:::: {.whitebox data-latex=""}
+Q: Interpret the APC for *ck* and *h*.
+::::
+
+
+

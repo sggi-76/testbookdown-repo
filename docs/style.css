@@ -1,0 +1,42 @@
+p.caption {
+  color: #777;
+  margin-top: 10px;
+}
+p code {
+  white-space: inherit;
+}
+pre {
+  word-break: normal;
+  word-wrap: normal;
+}
+pre code {
+  white-space: inherit;
+}
+
+table, th, td {
+  border: 1px solid;
+}
+
+.blackbox {
+  padding: 1em;
+  background: lightgray;
+  color: black;
+  border: 2px black;
+  border-radius: 10px;
+}
+.center {
+  text-align: center;
+}
+
+.whitebox {
+  padding: 1em;
+  background: white;
+  color: black;
+  border: 2px solid black;
+  border-radius: 10px;
+}
+.heighttext{
+ float:right;
+ height:3000px;
+ width:700px;
+ }

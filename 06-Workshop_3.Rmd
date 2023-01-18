@@ -1,0 +1,294 @@
+# Workshop 3: Simple linear regression
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Perform some exploratory analysis, perform simple linear regressions in ``R`` and interpret the coefficients. </li>
+  <li>Understanding of the residual assumptions and the residual plots.</li>
+  <li>Understanding of the the $R^2$ and the residual standard deviation as "goodness of fit" measures.</li>
+</ul>
+::::
+
+I will be using both the command ``ggplot()`` from the "ggplot2" package and ``plot()``. Specifically residual plots the ``plot()`` command in the "base" package in ``R`` is quicker. For those who have difficulty installing or accessing the "ggplot2" package on your PCs or laptops, I include the code for using ``plot()`` in some of the plots below but it is generally commented out.
+
+*Note*: Adding a "#" at the beginning of a line ``R`` code _comments is out_, i.e. you can see it but ``R`` ignores 
+
+## Preamble
+
+Remember to load packages below if you can
+
+```{r message=FALSE}
+library(arm)
+library(ggplot2)
+```
+
+## Data
+
+For this and some future classes we'll be using the Stats study habits dataset. This is based on a questionnaire of LSE stats students over the course of 3 years. The questionnaire asked about student's study habits -- how often, whether in groups or alone, how they did in tests etc. The responses to some of these questions were then transformed into 8 study skill scores the sum of which we use as a predictor variable here. The outcome of interest is the grade (out of 100) in the stats exam. 
+
+|       Name      |     Type    |                                                Description                                                |
+|:---------------:|:-----------:|---------------------------------------------------------------------------------------------------------| 
+| Interesting     |    binary   | Is stats interesting? 1 - yes, 0 - no                                                                             
+| Study Skills    | continuous   | 0-56 Total study skills - higher is more skills                                                                 |
+| Grade           | continuous  | grades in stats exam out of 100                                                                           |
+| Enjoy         | binary  | Do you enjoy stats? 1-yes, 0 - no                                                                      |
+| A-level     | continuous  | grades in stat/maths A-level out of 7                                                               |
+
+
+Let's load the data and check it looks OK.
+```{r results='hide'}
+Study_habits<-read.csv("Stats_study_habits_slr.csv")
+head(Study_habits)
+summary(Study_habits)
+```
+
+:::: {.whitebox data-latex=""}
+Q: What is the range of A-level? Study.Skills?
+
+Q: What is the median Grade?
+
+Q: What is the proportion of students who enjoy statistics? 
+
+Q: What is the proportion of students who are interested in statistics?
+::::
+
+## Binary predictors -- Interesting
+
+We'll start with one binary predictor: ``Interesting``. 
+
+Before we start with the analysis think briefly about what relationship you expect to see between ``Interesting`` and ``Grades``. You should get into the habit of doing this. It helps to engage with the data so that you don't blindly accept whatever output ``R`` gives you. However you also need to be aware of the fact that relationships in simple linear regression, as expressed by regression coefficients, may change in both size and direction when more than one predictor is introduced.
+
+:::: {.whitebox data-latex=""}
+Q: What do you expect the relationship between Interesting and Grade to be?
+::::
+
+Next let's plot the data. Below is a boxplot that shows how the Grades are distributed amongst those who do and don't find stats interesting.
+
+```{r fig.width=3, fig.asp=1, fig.align="center"}
+#R base package plot
+#with(Study_habits,boxplot(Grade~Interesting, xlab="Interesting", ylab="Grade"))
+##ggplot2
+ggplot(Study_habits, aes(x=factor(Interesting), y=Grade)) + geom_boxplot()
+```
+
+:::: {.whitebox data-latex=""}
+Q:What do you infer from the plot?
+::::
+
+
+Let's run a regression using ``lm()``
+
+```{r }
+grade.interesting.lm<-lm(Grade~Interesting,data=Study_habits)
+display(grade.interesting.lm)
+```
+
+Formally: E$($Grade$)=57.5+15.3 Interesting$
+
+The model tells us about the **difference** in Grades between people who say they find stats interesting vs those who don't. 
+
+Plug Interesting=0 into the regression and you get the **intercept** 57.5, i.e. the predicted Grade for students who do not find statistics interesting. Plug Interesting=1 into the equation you get $57.5+15.3=72.8$ which is the predicted Grade for students who find statistics interesting. 15.3 is the **slope** and tells us that students who find statistics interesting have **on average** a 15.3 higher Grade than students who do not.
+
+## Continuous predictor -- Study.Skills
+
+We now use a single continuous predictor: Study.Skills. Study.Skills is the sum of the scores obtained by students  for a number of study skill related variables. The higher it is the more study skills the student has. The maximum possible is 56 although no-one in the sample attained that.
+
+:::: {.whitebox data-latex=""}
+Q:What do you anticipate the relationship between *Study.Skills* and *Grades* to be?
+:::: 
+
+```{r fig.width=4, fig.asp=0.65, fig.align="center"}
+#R base package
+#with(Study_habits, plot(Study.Skills,Grade,pch=4))
+ggplot(Study_habits, aes(x=Study.Skills, y=Grade))+ geom_point()
+```
+
+
+:::: {.whitebox data-latex=""}
+Q: What do you infer from the plot?
+::::
+
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**ggplot2 package**
+:::
+
+The "ggplot2" package is part of the "tidyverse" approach to coding in ``R`` which is becoming increasingly popular. Instead of having a function and adding all the arguments inside it, it has a core command ``ggplot()`` which defines the data and the variables (``x,y,fill,colour``) and then additional function follow with a ``+``
+
+We've seen that in both the cases above the ``ggplot()``  command was similar, with just the ``x`` changing value. The first plot was a boxplot so ``+ geom\_boxplot()`` was added. The second plot was a scatterplot so ``+ geom\_point()`` was added.
+
+In order to make sure the whole line of code is visible in the output on the page in front of you, from now on, I assign a name (``p1``) to the plot I create in ``ggplot()`` and then add arguments to ``p1`` in subsequent lines.
+::::
+
+Now for the regression:
+
+```{r}
+grade.studyskills.lm<-lm(Grade~Study.Skills, data=Study_habits)
+display(grade.studyskills.lm)
+```
+
+Formally E$($Grade$)=38.8+1.5Study.Skills$
+
+The model tells us by how much the _average_ Grade changes when Study.Skills increases by *one*.
+
+Plug Study.Skills=0 into the regression equation, this gives you the **intercept**: 38.8 which is the predicted score for students who have a 0 Study.Skills score. $30.8+1.5=32.3$ is the predicted score for students who have value 1 Study.Skills score. $30.8+1.5\times10=45.8$ is the predicted score for a student with Study.Skills score of 10. 
+1.5 is the **slope** and tells us that the predicted Grade increases **on average**  by 1.5 for an increase of 1 in the study skills score.
+
+:::: {.whitebox data-latex=""}
+Q: Are any students likely to have a Study skills score of 0? \\
+
+Q: If not, how is the intercept to be interpreted?
+::::
+
+### Adding a regression line to the plot
+
+```{r fig.width=4, fig.asp=0.65, fig.align="center"}
+p1<- ggplot(Study_habits, aes(x=Study.Skills, y=Grade))+ geom_point() 
+p1<- p1 + geom_smooth(method="lm",fill=NA)
+p1
+```
+
+
+```{r fig.width=5, fig.asp=1}
+#with(Study_habits, plot(Study.Skills,Grade,pch=4))
+#abline(grade.studyskills.lm)
+#abline(a=40,b=1.5, lty=2)
+#abline(v=mean(Study_habits$Study.Skills),lty=3)
+#abline(h=mean(Study_habits$Grade),lty=4)
+```
+
+## Residual Assumptions
+
+The assumptions we discuss below are about the error in a regression, that is, the difference between the "true" regression line and the observed points. However we don't observe the error directly because all we have is the estimated line so we use the residuals as a proxy. Note that assumptions about the error are mirrored by assumptions about the outcome as the residual is the outcome minus a straight line (i.e. the residual is a linear transformation of the outcome). 
+
+**Normality**
+
+Hypothesis tests all rely on the errors ($\epsilon$) being approximately normally distributed in linear regression. If normality does not hold then the hypothesis tests can be invalid.
+
+Predictions also become unreliable if we cannot rely on normality.
+
+It is always important to check _approximate_ normality of residuals. Linear regression is still valuable when the residuals aren't normally distributed, but results are less reliable. 
+
+Normality is checked using:
+
+* The histogram of the residuals.
+* The Q-Q plot.
+
+**Independence**
+
+The error terms have to be independent of one another. Consider the following two situations:
+
+1. Data are daily temperatures measured outside Columbia house in the MT 2018
+2. Data are number of beers sold from a beach shack in Australia and the number of shark attacks in the area over 10 years 
+
+*1. Temperatures*
+
+If we regress temperature on day from the first to the last day of the MT 2018 the residuals will be correlated. 
+
+:::: {.whitebox data-latex=""}
+Q: Why are the residuals correlated?
+::::
+
+We don't look at time series in this course so we will not come across this type of problem directly. However independence of this type can be checked by plotting the errors against time -- you will expect to see some sort of seasonal pattern.
+
+*2. Beer/Sharks*
+
+If we regress shark attacks per summer on number of beers sold we see that the two are correlated. However the regression will also result in correlated errors. 
+
+:::: {.whitebox data-latex=""}
+Q: Why are the residuals correlated?
+::::
+
+This type of problem can sometimes be avoided by trying to understand how variables in a data set are related and whether there are any predictor variables that might take the role of _confounding_ variables. I.e. variables that are somehow (causally?) related to the other predictors such that omitting them introduces dependence and therefore bias into the regression. 
+
+If we include data on them in the regression we may be able to overcome the problem. Including these variables can even result in a change of sign! Other times we simply do not have data on these variables and must accept that our analysis is likely to be incorrect to some extent. These variables are also called, lurking, omitted. There is an exercise in the back of the course notes to investigate the effect of confounding on estimates of regression coefficients. 
+
+**Constant Variance**
+
+In order for linear regression to be useful we must assume that the errors have a common variance -- i.e. there is no _heteroscedasticity_. If this assumption is violated then our estimates for standard errors become unreliable as do Hypothesis tests. 
+
+Often when there is lack of common variance this can be addressed either by transforming the data or by using non-linear models. We check heteroscedasticity by using:
+
+* The plot of the fitted values vs the residuals
+    - if this displays a funnel shape
+    - if this displays a non-linear relationship
+  
+then there is evidence of heteroscedasticity.
+
+**Zero expectation**
+
+The error terms should have a 0 mean. This assumption holds approximately with least squares estimation if the relationships are linear (it's designed that way). If relationships are non-linear then it won't hold. In practice the mean of the residuals will never be exactly 0, however it will be as small as possible. 
+
+## Residual plots
+
+The plots used to check the residual assumptions are called *residual plots*. We want 3 plots so we ask for a 2 by 2 grid using ``par(mfrow=c(r,c))`` (3 in a row or in a column makes plots look squashed or takes up too much room). For residual plots we use the ``plot()`` function as it easily produces residual plots when it is passed a linear model.
+
+```{r fig.width=7.1, fig.asp=1, fig.align='center'}
+par(mfrow=c(2,2))
+plot(grade.studyskills.lm, which=c(1,2))
+hist(rstandard(grade.studyskills.lm), freq = FALSE , 
+     main="Histogram of standardised residuals", 
+     cex.main=0.8, xlab="Standardised residuals")
+```
+Let's go through this code:
+
+* ``plot(grade.studyskills.lm)`` produces 4 plots. We only want 2 of them, the residual vs fitted and the Q-Q plot
+* As these are the 1st two we add an argument ``which=c(1,2)``
+* ``hist(x)`` produces a histogram of x
+* ``rstandard(grade.studyskills.lm)`` are the standardised residuals
+* ``main="Histogram of residuals"`` is the title of the plot -- Histogram of residuals
+* ``font.main=1`` determines the size of the font of the title
+* ``xlab="Residuals"`` says that the x label -- Residuals
+* ``probability=TRUE`` gives the probability histogram rather than the frequency histogram
+
+:::: {.whitebox data-latex=""}
+Q: For the three residual plots above, do you think the residual assumptions hold? If not, why not?
+::::
+
+
+## Some goodness of fit statistics: Residual standard deviation and R-squared
+
+Let's have another look at the output from ``display``:
+```{r}
+grade.lm.0<-lm(Grade~Study.Skills, data=Study_habits)
+display(grade.lm.0)
+```
+
+At the bottom of the output are two statistics: the residual standard deviation (``residual sd``) and the $R^2$ (``R-Squared``). These statistics are crude (but often effective) measures of how well the model fits and/or explains the data. 
+
+The residual standard deviation is the standard deviation of the estimated regression line. It should be smaller than the range of the outcome: 
+
+In our case max(Grade)-min(Grade)=`r abs(max(Study_habits$Grade))-abs(min(Study_habits$Grade))` and $\hat{\sigma}$=`r round(sigma.hat(grade.lm.0),2)` 
+
+:::: {.whitebox data-latex=""}
+Q: Interpret the residual standard deviation in this example:
+::::
+
+The lower the R-squared the better the fit of the line. In our case it is 0.20 so 20\%. 
+
+:::: {.whitebox data-latex=""}
+Q: Comment on the R-squared in this example:
+::::
+
+## For the ``plot()`` command only:
+
+Often you will want to put more than one graph on the same page. If you use \texttt{plot()} then you'll need to put \texttt{par(mfrow=c(num.rows,num.columns))} before the plots. 
+Note that if you close the plot then the \texttt{par()} option gets forgotten.  
+
+For example:
+
+```{r fig.keep='none', fig.show='hide'}
+par(mfrow=c(2,1))
+plot(seq(1,10),seq(1,10))
+plot(seq(1,10),seq(1,10),col="red")
+```
+Then try:
+```{r fig.show='hide'}
+par(mfrow=c(1,2))
+plot(seq(1,10),seq(1,10))
+plot(seq(1,10),seq(1,10),col="red")
+```

@@ -1,0 +1,370 @@
+# Lecture 7:Prediction and Validation
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Understand how to predict using regressions</li>
+  <li>Understanding the principle of cross-validation for model fit and prediction</li>
+  <li>Model building: at the end of this week you will have all the basic tools to run an analysis using a linear model. Refer to the back of the book for the chapter on Model Building.</li>  
+</ul>
+::::
+
+## Why regression (again)?
+
+The goals of regression are broadly two (and most analyses have both elements): 
+
+* One aim is _to understand the relationships between predictors (explanatory variables) and outcomes_. This is important for decision making: e.g. if we see that women earn less than men for the same types of jobs the maybe it is necessary to make laws to ensure this does not happen (sadly there are laws but it still happens!) 
+
+* Another aim is to _predict values for new data_.  For example a student might want to predict, given the values of their predictor variables what grade they are expected to get on their stats exam using data from students in previous years. The use of statistical models in finance and climate have almost exclusively the goal of prediction of e.g. future prices and volatility, the weather in the next week. In these cases we are interested in _out of sample_ prediction.
+
+Even when prediction is not the principal aim of a regression, it can be useful to use it as a tool to _validate_ the model. I.e. if a model is good at predicting then it is telling us something true about the underlying relationships between the variables. In these cases we often use a tool called _cross-validation_. Simply put, cross-validation divides the data into two parts, and uses one -- termed the training set -- to fit a model and then predict the other part -- termed the test set. How well the model predicts can be seen as an indication of how good the model is.
+
+## Prediction
+
+Let's look at the Study Habits data again:
+
+```{r fig.asp=0.4, fig.width=9, tidy=TRUE, echo=FALSE, warning=FALSE}
+Study_habits<-read.csv("../Data/Stats_study_habits.csv",header=TRUE)
+
+p1<-ggplot(Study_habits,aes(x=Study.Skills,y=Grade, colour=factor(Interesting)))+geom_point(size=0.5)+facet_wrap(~Gender)+scale_colour_grey(start=0.1,end=0.8)+theme_bw()+labs(title="by Interesting,black=not interested")+theme(legend.position = "none")#+geom_smooth(method="lm",se=FALSE)
+
+p3<- Study_habits[,c(2,5,8)] %>% gather(key="variable", value="value", -Grade) %>% ggplot(aes(x=factor(value), y = Grade, fill=factor(value))) +geom_boxplot() +facet_wrap(~ variable, scales = "free_x")
+#for book
+p3<-p3+theme_bw()+scale_fill_grey()+theme(legend.position = "none")
+
+
+grid.arrange(p1,p3,nrow=1)
+
+```
+\newpage
+
+Lets look at the model with Gender, Interesting and Study.Skills
+```{r }
+grade.lm.3<-lm(Grade~Gender+Interesting+Study.Skills, data=Study_habits)
+display(grade.lm.3)
+```
+
+:::: {.whitebox data-latex=""}
+<ul>
+  <li>Q: Using the model above, calculate by hand, what the expected *Grade* is for a woman student who in interested in statistics and has *Study.Skills* of 30.</li>
+  <li>Q: Calculate the expected *Grade* for a man with *Study.Skills* of 20 who is not interested in statistics.</li>
+</ul>
+::::
+ 
+The values we've considered are _in-sample_. This means that the values for the predictors for both points are within the observed ranges for these predictors. The range of ``Study.Skills`` is 9-34 and we've observed both men and women, both interested and uninterested. Because the points are in-sample the model is likely do to well (or at least as well as it can as it is not a great model).
+
+If we want to predict for a new student who is female, has study skills 10 and is interested in statistics then we are moving further away from the main bulk of the data. Compare the location along the x-axis of this point in the scatterplot to see this. 
+
+We get ``R`` to do it: Create a data frame with the new values
+
+```{r}
+x.in.sample<-data.frame(Gender=c("F","M"),Interesting=c(1,0),Study.Skills=c(30,20))
+x.in.sample
+x.out.of.sample<-data.frame(Gender=c("F"),Interesting=c(0),Study.Skills=c(10))
+x.out.of.sample
+```
+Use the ``predict`` function. 
+
+1. The first argument is the name of the linear model you want to predict from. 
+2. The second is the data frame of the values of the predictor variables you want to predict for. ``interval="prediction"`` says to use the predictive interval. You could use ``interval="confidence"`` but it makes more sense to ask for confidence intervals for parameters.
+
+```{r }
+predict(grade.lm.3,x.in.sample,interval="predict", level=0.95)
+predict(grade.lm.3,x.out.of.sample,interval="prediction", level=0.95)
+```
+Add the points to the plot below and it becomes clear which points are estimated with less certainty and why.
+
+```{r, fig.width=4, fig.asp=0.66, tidy=TRUE, echo=FALSE, fig.align='center' }
+mean.point<-data.frame(Study.Skills=mean(Study_habits$Study.Skills),Grade=mean(Study_habits$Grade))
+p1<-ggplot(data=Study_habits, aes(x = Study.Skills, y = Grade)) + geom_point() 
+#without se=FALSE
+p1<-p1+geom_smooth(method="lm")
+p1<-p1+geom_point(data = mean.point, size=5, shape=3)
+#for book
+p1<-p1+theme_bw()+scale_color_grey()
+p1
+```
+The bands in grey show the prediction interval. We can see that close to the mean of ``Study.Skills``/``Grade`` (where the cross is) at 24.7,66.1 this is narrowest.
+
+## More Out of sample prediction
+
+The data we have looked at so far is for the 2012 and 2013 cohorts of students. We also have data on the 2015 cohort. Let's see how well the model predicts their grades.
+
+Load the new 2015 cohort data:
+```{r}
+new.Study_Habits<-read.csv("../Data/Stats_study_habits.new.csv",header=T)
+```
+
+Use it to predict the grades for the 2015 cohort.
+```{r}
+predict.2015<-predict(grade.lm.3,new.Study_Habits)
+```
+
+We can assess how good the predictions in two main ways: One is to look at some plots, the second is to evaluate the mean square predictive error(MSPE).  We'll look at the plots only for the study habits data as they are relatively small. When we tackle the hourly pay data next, we'll also look at the MSPE.
+
+To see how good the predictions are visually, we create a new data set with the predictions using the model, the actual data from 2015 and the error which is the difference between the two. These help us to create the following plots:
+
+1. The plot of the predicted vs the original points
+2. The plot of the predicted points vs the prediction error associated with these points
+
+```{r tidy=TRUE, echo=FALSE}
+#Create new data set with predicted, original and error
+pred.val.set<-data.frame(predicted=predict.2015, original=new.Study_Habits$Grade,
+                         error=(predict.2015-new.Study_Habits$Grade))
+```
+
+```{r fig.asp=0.5, fig.width=10, tidy=TRUE, echo=FALSE}
+pred.val.set<-data.frame(predicted=predict.2015, original=new.Study_Habits$Grade, error=(predict.2015-new.Study_Habits$Grade))
+#predicted vs original
+p1<-ggplot(data=pred.val.set, aes(x=predicted,y=original))+geom_point()
+p1<-p1+geom_smooth(method="lm", se=FALSE) 
+#regress one on the other to see "fit"
+p1<-p1+geom_abline(slope=1,intercept=0, linetype="dashed")
+#the ideal would be for the lm to fit the diagonal
+#for book
+p1<-p1+theme_bw()+scale_color_grey()
+
+#predicted vs error
+p2<-ggplot(data=pred.val.set, aes(x=predicted,y=error))+geom_point()
+#lines at 0 and +/- one std deviation of error
+p2<-p2+geom_abline(slope=0,intercept=0)
+p2<-p2+geom_abline(slope=0,intercept=sd(pred.val.set$error), linetype="dashed")
+p2<-p2+geom_abline(slope=0,intercept=-sd(pred.val.set$error), linetype="dashed")
+#for books
+p2<-p2+theme_bw()+scale_color_grey()
+
+grid.arrange(p1,p2,nrow=1)
+```
+
+1. On the left hand side the solid line is the diagonal and the dotted line is the regression of real vs predicted grade. 
+2. On the right hand side the dotted lines are $\pm$ the standard error of the prediction error. 
+3. There is quite a bit of variability.
+Note that the regression itself is not a great fit in the first place (it has an R$^2$ of 0.36)
+
+
+:::: {.whitebox data-latex=""}
+<ul>
+  <li>Q: Explain why we plot the line with intercept 0 and gradient 1 on the left hand side plot.</li>
+  <li>Q: Explain how to use the right hand plot.</li>
+</ul>
+::::
+
+The predictions are acceptable but not great as can be seen in both of the plots. 
+
+## Cross-validation
+
+Cross-validation is a very important topic in machine learning. Machine learning is a branch of statistics that focuses mostly on prediction and therefore diagnostic tools that help quantify how well a model is at predicting are essential.
+
+The basic idea is as follows: 
+
+1. Take a random % (e.g. 90%) of the data. These are called the _training set_. The remaining % (e.g. 10%) are called the _test set_. 
+2. Fit a model using the training set data only.
+3. Using the model and the values of the predictors for the test set predict the outcome for the test set. These are your predicted outcomes.
+4. Finally, compare the predicted outcomes to the observed outcome in the test set. 
+
+You need to do this for more than one 90/10 split because one split could by chance be unrepresentative. You should also try different splits such as a 80/20 or 70/30 split. 
+
+The smaller the size of the training set the more variable the results (i.e. the larger the standard errors of the regression coefficients) but the easier it is to see whether the model is doing badly as the model will be predicting a larger outcome sample.
+
+Let's try some cross-validation using the data on hourly pay, however we'll choose a random sample of 2000 points as otherwise it becomes hard to see what is happening in the plots.
+
+```{r results='hide', echo=FALSE}
+Hourly_Pay_full<-read.csv("../Data/Large_Hourly_Pay.csv", header=TRUE)
+#sample 10% of the numbers frpm
+HP.1<-sample(1:nrow(Hourly_Pay_full),2000, replace=FALSE)
+Hourly_Pay<-Hourly_Pay_full[HP.1 ,]
+colnames(Hourly_Pay)
+```
+
+We'll create 3 10/90 splits: In order to do cross-validation we need a random sample of 10%: ``0.9*nrow(Hourly_pay)`` .
+
+```{r  fig.asp=0.5, fig.width=12, tidy=TRUE,  warning=FALSE, echo=FALSE}
+for(i in 1:3){
+#create training/test sets
+cross.val<-sample(1:nrow(Hourly_Pay),0.9*nrow(Hourly_Pay) , replace=FALSE)
+training.set<-Hourly_Pay[cross.val,] #the 90% to fit the model
+test.set<-Hourly_Pay[-cross.val,] # the 10% to use as validation sample
+#fit the model
+cv.hourlypay.lm<-lm(log(hourpay)~., data=training.set)
+#create data frame to use in plots
+pred.val.set<-data.frame(predicted=predict(cv.hourlypay.lm,test.set), 
+#predicted vs original
+original=log(test.set$hourpay),error=(predict(cv.hourlypay.lm,test.set)-log(test.set$hourpay)))
+#first iteration
+if(i==1){
+p1<-ggplot(data=pred.val.set, aes(x=predicted,y=original))+geom_point()+xlim(1,4)+ylim(1,4)+theme_bw()
+#regress one on the other to see "fit"
+p1<-p1+geom_smooth(method="lm", se=FALSE) 
+#the ideal would be for the lm to fit the diagonal
+p1<-p1+geom_abline(slope=1,intercept=0, linetype="dashed")
+#predicted vs error
+p2<-ggplot(data=pred.val.set, aes(x=predicted,y=error))+geom_point()+theme_bw()
+}else{
+#points for the second iteration  
+  if(i==2){
+
+    #points on LHS plot
+p1<-p1+geom_point(data=pred.val.set, aes(x=predicted,y=original), color="red")
+#regress one on the other to see "fit"
+p1<-p1+geom_smooth(method="lm", se=FALSE, color="darkred") 
+
+#points on RHS plot
+p2<-p2+geom_point(data=pred.val.set, aes(x=predicted,y=error), color="red")
+}else{
+#points for the third iteration
+#points on LHS plot
+p1<-p1+geom_point(data=pred.val.set, aes(x=predicted,y=original), color="green")
+#regress one on the other to see "fit"
+p1<-p1+geom_smooth(method="lm", se=FALSE, color="darkgreen") 
+
+#points on RHS plot
+p2<-p2+geom_point(data=pred.val.set, aes(x=predicted,y=error), color="green")
+#lines at 0 and +/- one std deviation of error
+p2<-p2+geom_abline(slope=0,intercept=sd(pred.val.set$error), linetype="dashed")
+p2<-p2+geom_abline(slope=0,intercept=0)
+p2<-p2+geom_abline(slope=0,intercept=-sd(pred.val.set$error), linetype="dashed")
+}}}
+grid.arrange(p1,p2,nrow=1)
+```
+**Note** I didn't use a black and white colour scale in these plots as it becomes hard to see anything. This is why the plots above aren't very informative. The plots in the slides and in the code are.
+
+We can see that there is a lot of variation in the plots across all three iterations. Specifically the variation is in the y-direction in the predicted vs original plot, indicating that there is more variability in the original ``hourpay`` than the model is accounting for. This is not great for prediction. On the plus side, the regression of the original ``hourpay`` on the predicted ``hourpay`` is very close to the line meaning that there is no non-linear trend that the predictions are not picking up. For the predicted vs error plot, there are a lot of points beyond the one standard deviation lines but the error is not increasing with the size of the predictions. 
+
+We can also see that while there is some variability in the predictions for different training/test set splits, they are broadly similar in terms of spread and it is impossible to tell the regression lines in the predicted vs original plots apart.
+
+## Using different splits
+
+Let's see what the effect is of having different splits. We'll try 50/50, 70/30 and 90/10 splits. I don't recommend the first one, but it is interesting to see what happens. 
+
+```{r  fig.asp=0.5, fig.width=12, tidy=TRUE, warning=FALSE,echo=FALSE}
+split.proportions<-c(0.5,0.7,0.9)
+for(i in 1:3){
+#create training/test sets
+cross.val<-sample(1:nrow(Hourly_Pay),split.proportions[i]*nrow(Hourly_Pay) , replace=FALSE)
+training.set<-Hourly_Pay[cross.val,] #the 90% to fit the model
+test.set<-Hourly_Pay[-cross.val,] # the 10% to use as validation sample
+#fit the model
+cv.hourlypay.lm<-lm(log(hourpay)~., data=training.set)
+#create data frame to use in plots
+pred.val.set<-data.frame(predicted=predict(cv.hourlypay.lm,test.set), 
+#predicted vs original
+original=log(test.set$hourpay),error=(predict(cv.hourlypay.lm,test.set)-log(test.set$hourpay)))
+#first iteration
+if(i==1){
+p1<-ggplot(data=pred.val.set, aes(x=predicted,y=original))+geom_point()+xlim(1,4)+ylim(1,4)+theme_bw()
+#regress one on the other to see "fit"
+p1<-p1+geom_smooth(method="lm", se=FALSE) 
+#the ideal would be for the lm to fit the diagonal
+p1<-p1+geom_abline(slope=1,intercept=0, linetype="dashed")
+#predicted vs error
+p2<-ggplot(data=pred.val.set, aes(x=predicted,y=error))+geom_point()+theme_bw()
+}else{
+#points for the second iteration  
+  if(i==2){
+
+    #points on LHS plot
+p1<-p1+geom_point(data=pred.val.set, aes(x=predicted,y=original), color="red")
+#regress one on the other to see "fit"
+p1<-p1+geom_smooth(method="lm", se=FALSE, color="darkred") 
+
+#points on RHS plot
+p2<-p2+geom_point(data=pred.val.set, aes(x=predicted,y=error), color="red")
+}else{
+#points for the third iteration
+#points on LHS plot
+p1<-p1+geom_point(data=pred.val.set, aes(x=predicted,y=original), color="green")
+#regress one on the other to see "fit"
+p1<-p1+geom_smooth(method="lm", se=FALSE, color="darkgreen") 
+
+#points on RHS plot
+p2<-p2+geom_point(data=pred.val.set, aes(x=predicted,y=error), color="green")
+#lines at 0 and +/- one std deviation of error
+p2<-p2+geom_abline(slope=0,intercept=sd(pred.val.set$error), linetype="dashed")
+p2<-p2+geom_abline(slope=0,intercept=0)
+p2<-p2+geom_abline(slope=0,intercept=-sd(pred.val.set$error), linetype="dashed")
+}}}
+grid.arrange(p1,p2,nrow=1)
+```
+We can see that there is a bit less scatter for the green/light (90/10) than the red/middle (70/30) than the black (50/50) points.
+
+## Mean square predictive errors
+
+One way of assessing how good a model is, is to compare the mean square of the predictive errors for in and out of sample predictions. The MSPE=$\frac{\sum_1^n{e_i^2}}{n}$ where $e_i$ is the prediction error for the $i$th point and $n$ is the size of the training set for in sample prediction and the test set for out of sample predictions. We expect the model to do better in the in sample predictions (i.e. the fitted values) than in the out of sample predictions. When the difference between the two is small, then the model is doing as well in the out-of-sample predictions as it is in the in-sample prediction. Bear in mind that for a poor model both in and out of sample predictions may be poor.
+
+It is not sufficient to compare the MSPE for one split. The results below are for 100 iterations of a 70/30 split. For each split we see that the values are close, indicating that the model is as good at predicting in sample as it is out of sample. Note that I am using a for-loop.
+
+```{r}
+#create two vectors to contain the mse's for each iteration
+in.sample.mse<-rep(NA,100)
+out.sample.mse<-rep(NA,100)
+#repeat 100 times
+for(i in 1:100){
+cross.val<-sample(1:nrow(Hourly_Pay),0.7*nrow(Hourly_Pay), replace=FALSE)
+training.set<-Hourly_Pay[cross.val,] 
+test.set<-Hourly_Pay[-cross.val,] 
+#regression
+cv.hourlypay.lm<-lm(log(hourpay)~., data=training.set)
+#in sample prediction error
+in.sample.error=predict(cv.hourlypay.lm,training.set)-log(training.set$hourpay)
+#out of sample prediction error
+out.sample.error=predict(cv.hourlypay.lm,test.set)-log(test.set$hourpay)
+#in sample mse
+in.sample.mse[i]<-sum(in.sample.error^2)/length(in.sample.error)
+#out of sample mse
+out.sample.mse[i]<-sum(out.sample.error^2)/length(out.sample.error)
+}
+#take the means of the two
+mean(out.sample.mse)
+mean(in.sample.mse)
+```
+
+
+## Using prediction for model comparison
+
+Let's try a simpler model. Let's get rid of all variables except ``age`` and ``gender``. I don't recommend you do this in practice but for the sake of example let's see what happens. We term the model with all the predictors the "full" model and the model with only ``age`` and ``gender`` the "reduced" model. Results for the MSPE for both in and out of sample predictions are shown below:
+
+```{r echo=FALSE}
+#run the same mse for both the models
+mse.pred<-array(dim=c(100,2))
+mse.pred.red<-array(dim=c(100,2))
+#repeat 100 times
+for(i in 1:100){
+cross.val<-sample(1:nrow(Hourly_Pay),0.7*nrow(Hourly_Pay), replace=FALSE)
+training.set<-Hourly_Pay[cross.val,] 
+test.set<-Hourly_Pay[-cross.val,] 
+#full regression model
+cv.hourlypay.lm<-lm(log(hourpay)~., data=training.set)
+#reduced regression model
+cv.hourlypay.lm.red<-lm(log(hourpay)~gender+age,data=training.set)
+#in sample prediction error
+in.sample.error=predict(cv.hourlypay.lm,training.set)-log(training.set$hourpay)
+in.sample.error.red=predict(cv.hourlypay.lm.red,training.set)-log(training.set$hourpay)
+#out of sample prediction error
+out.sample.error=predict(cv.hourlypay.lm,test.set)-log(test.set$hourpay)
+out.sample.error.red=predict(cv.hourlypay.lm.red,test.set)-log(test.set$hourpay)
+#in sample mse
+mse.pred[i,1]<-sum(in.sample.error^2)/length(in.sample.error)
+mse.pred.red[i,1]<-sum(in.sample.error.red^2)/length(in.sample.error.red)
+#out of sample mse
+mse.pred[i,2]<-sum(out.sample.error^2)/length(out.sample.error)
+mse.pred.red[i,2]<-sum(out.sample.error.red^2)/length(out.sample.error.red)
+}
+#take the means of the two
+mse<-data.frame(full=colMeans(mse.pred),reduced=colMeans(mse.pred.red))
+rownames(mse)=c("in sample", "out of sample")
+mse
+```
+
+:::: {.whitebox data-latex=""}
+Q: Interpret the results above.
+::::
+
+When doing this in practice, it is useful to investigate whether there are any systematic differences between the predictions of one model vs another. This can shed light on how different predictors are associated with the outcome. In our case there are no systematic differences between the plots/errors between the two models. 
+
+An extension of this approach is _K-fold cross-validation_ which is very common in Machine Learning. In K-fold cross-validation you split your data into k groups and use (k-1) groups together to predict the kth group for all k groups. 
+
+
+

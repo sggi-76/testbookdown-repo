@@ -1,0 +1,208 @@
+# Lecture 9: Logistic Regression - Part 2
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Learning outcomes**
+:::
+
+<ul>
+  <li>Running logistic regressions with one predictor in *R*</li>
+  <li>Adding multiple predictors</li>
+  <li>Understanding Average Predictive Comparisons </li>
+</ul>
+::::
+
+## Diagnostics for Logistic Regression
+
+As with linear regression, there are diagnostics for logistic regression. Again it is important _not_ to focus on these exclusively when performing an analysis but rather use them as part of a tool-kit.
+
+Let's use the golfing data again:
+
+```{r warning=FALSE}
+golf.dat<-read.csv("../Week10/golf.full.csv",header = TRUE)
+golf.glm<-glm(Success~Feet, data=golf.dat, family=binomial(link="logit"))
+```
+
+## Statistical Significance of coefficients
+
+The output of ``display`` for ``glm`` is similar to that for ``lm``. Similarly the coefficients are significant at the 5% level if coefficient $\pm$ 2 $\times$ se does not cover 0. 
+
+```{r echo=FALSE}
+display(golf.glm)
+```
+
+:::: {.whitebox data-latex=""}
+Q: For the ouput of *display()* above, are the intercept or the coefficient of *Feet* significant? How can you tell?
+::::
+
+## Classification table - predicitve ability of model
+
+We saw in the last workshop that we can use the table that plots the predicted vs the observed outcomes as a measure of how good the model predicts/fits the data. Let's try this with the golfing data.
+
+First we create a function (details in next week's workshop) that allows us to calculate the percentage of the time our model predicts correctly.
+```{r tidy=TRUE}
+#function
+ct.op<-function(predicted,observed){ #arguments
+#create the data frame  
+df.op<-data.frame(predicted=predicted,observed=observed)
+#create a table 
+op.tab<-table(df.op)
+#use the prop.table function to obtain the rows we need and stack them on top of each other with rbind
+op.tab<-rbind(op.tab,c(round(prop.table(op.tab,2)[1,1],2),
+                       round((prop.table(op.tab,2)[2,2]),2)))
+#name the rows
+rownames(op.tab)<-c("pred=0","pred=1","%corr")
+#name the columns
+colnames(op.tab)<-c("obs=0","obs=1")
+#return the table
+op.tab
+}
+```
+
+Now apply the function to the golf data:
+
+```{r tidy=TRUE, echo=FALSE}
+pred.golf<-as.numeric(golf.glm$fitted.values>0.5)
+ct.op(pred.golf,golf.dat$Success)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Looking at the classification table, is this a good model for prediction? Explain your answer.
+::::
+
+## Deviance
+
+Another diagnostic is the model _deviance_. The deviance (also known as the -2 log likelihood) is analogous to the F-statistics in that it says something about the model as a whole but not individual predictors. The higher the deviance, the worse the model fit _relative to the null model_ deviance. 
+
+The deviance  can also be seen as a logistic regression analog of the residual sum of squares -- so typically, the bigger it is, the worse the model fit. The deviance is most often used to formally compare _nested_ models but can be used to informally compare non-nested models.
+
+:::: {.whitebox data-latex=""}
+Q: What does nested mean?
+::::
+
+### Deviance in ``R``
+
+The output of ``summary()`` or ``display()`` for a glm gives the _null_ and the _residual deviance_
+
+* The null deviance: for the _null_ model with _only_ the intercept (no predictors) - dev$_0$
+* The residual deviance: the deviance for the model estimated by the glm - dev$_m$
+* The difference between the deviances $\delta_d$ = dev$_0$ - dev$_m$  is a measure of how much better the estimated model is than the null model -- so the higher it is, the better the model is than the intercept only model
+* It is distrubuted according to the $\chi^2$ distribution on k degrees of freedom where k is the number of predictors in the model
+
+**How to use the deviance:**
+
+* For 1 predictor the critical value at the 5% level is 3.84: 
+* For 1 degree of freedom if $\delta_d$>3.84 then the estimated model is better than the null model
+* For k predictors let c$_k$ be the critical value for the $\chi^2$ distribution on k degrees of freedom
+* If the $\delta_d$>c$_k$ then the estimated model is better than the null model
+* If the $\delta_d$<c$_k$ then the estimated model is not better than the null model
+
+
+Let's look at the data from the last workshop on ICU deaths. First consider the model with only ``Age``.
+
+```{r}
+icu.dat<-read.csv("../Week10/ICUdeaths.csv", header=TRUE)
+icu.glm.1<-glm(Lived~Age,dat=icu.dat, family=binomial(link="logit"))
+display(icu.glm.1)
+```
+
+
+:::: {.whitebox data-latex=""}
+Q: Look at the output of *display(icu.glm.1)* above. What are the null and residual deviances? What is the difference between them? Based on this information which is better, the null model or *icu.glm.1*?
+::::
+
+## Adding more predictors
+
+Let's continue using the data on ICU deaths and add more predictors. In this case ``SBP `` (systolic blood pressure).
+
+```{r}
+icu.glm.2<-glm(Lived~Age+SBP,dat=icu.dat, family=binomial)
+display(icu.glm.2)
+```
+
+## Deviance again
+
+Note that SBP is significant at the 5% level with ``coef.se=0.004``. The model ``icu.glm.2`` is better than model ``icu.glm.1`` as it has an additional significant predictor. However we can confirm this by using the residual deviances to compare them to one another -- because ``icu.glm.1`` is nested in ``icu.glm.2``.
+
+
+* The redisual deviance for the model ``icu.glm.1`` - dev$_1$ =_______
+* The residual deviance for the model ``icu.glm.2`` - dev$_2$ =_______
+* The difference between the deviances $\delta_d$ = dev$_2$ - dev$_1$ =_______ is a measure of how much better ``icu.glm.2`` is than ``icu.glm.1``
+* It is distrubuted according to the $\chi^2$ distribution on 1 degrees of freedom because there are ___  predictors in ``icu.glm.2`` and ___ predictors ``icu.glm.1``
+* Is $\delta_d$>3.84? ______
+* Therefore ``icu.glm.2`` is ________ than ``icu.glm.1``
+
+Let's run a model with ``Age`` and ``Sex`` as predictors:
+
+```{r}
+icu.glm.3<-glm(Lived~Age+Sex,dat=icu.dat, family=binomial)
+display(icu.glm.3)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Look at the output *icu.glm.3* above. Is model *icu.glm.1* nested in *icu.glm.3*? If so compare the models using the deviance technique shown above. Which model do you prefer?
+::::
+
+More generally if you want to compare two nested models then you obtaQ: Look at the output \texttt{icu.glm.3} above. Is model \texttt{icu.glm.1} nested in \texttt{icu.glm.3}? If so compare the models using the deviance technique shown above. Which model in the residual deviances, their difference and then compare this to the critical value of the $\chi^2$ on degrees of freedom that are the difference in the number of predictors in the two models. For example, let's run a model with ``Age``, ``Sex`` ,``HBP`` and ``HR`` as predictors:
+
+```{r}
+icu.glm.4<-glm(Lived~Age+Sex+SBP+HR,dat=icu.dat, family=binomial)
+display(icu.glm.4)
+```
+
+:::: {.whitebox data-latex=""}
+Q: Is model *icu.glm.3* nested in *icu.glm.4*? If so compare the models using the deviance technique shown above. The critical value for the $\chi^2$ on 3 degrees of freedom is 7.81. Which model do you prefer?
+::::
+
+## Hypothesis tests:
+
+The when we compare the difference in the deviance with a critical value, we are performing a hypothesis test. Let us consider two logistic regression models:
+
+**Model 1**: logit$(p) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \ldots + \beta_k x_k$
+
+**Model 2**: logit$(p) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \ldots + \beta_k x_k + \ldots + \beta_{k+l} x_{k+l}$
+
+where $l \geq 1$.
+
+When we compare the null and the residual deviance for Model 1 we are running the following test:
+
+**H$_0$**: $\beta_1=\beta_2= \ldots =\beta_k=0$
+
+**H$_1$**: At least one $\beta_i \neq 0$ where $i \in \{1,2,\ldots,k\}$
+
+This is equivalent to the F-test for multiple linear regression. 
+
+When we compare the residual deviance of Model 1 to that of Model 2 we are running the following test:
+
+**H$_0$**: $\beta_{k+1}=\beta_{k+2}= \ldots =\beta_{k+l}=0$
+
+**H$_1$**: At least one $\beta_i \neq 0$ where $i \in \{k+1,k+2,\ldots,k+l\}$
+
+This is like partial F-tests in multiple linear regression.
+
+## Using ``anova()``
+
+We can use ``anova()`` (not Anova as we've used before) to run the tests for us:
+
+```{r}
+#compares model with Age and that with Age+Sex
+anova(icu.glm.1, icu.glm.3, test="Chisq")
+#compares model with Age+Sex and that with Age+Sex+SBP+HR
+anova(icu.glm.3, icu.glm.4, test="Chisq")
+```
+
+:::: {.whitebox data-latex=""}
+Q: Based in the output of the *anova()*'s above, which model do you prefer? Explain your answer.
+::::
+
+## Average predictive comparisons
+
+The logistic model is non-linear and that means that the regression coefficients don't have a straight-forward interpretation like the coefficients in a linear regression. That means that the effect on the probability of the outcome associated with an increase in one in a predictor depends on the starting value of the predictor and is not the same across the range of the predictor.
+
+If we only have one or two continous predictors we would probably use the plots from the last workshop to get an idea of the curvature of the model and then choose values of the predictors to explore their effect on the outcome. We have 3 continuous predictors so we'll look at _average predictive comparisons_ which are a way of obtaining a number that behaves in a similar way to linear regression coefficients.
+
+
+
+
+
+
